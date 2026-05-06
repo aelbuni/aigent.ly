@@ -1,0 +1,639 @@
+openapi: 3.1.0
+info:
+  title: Aigent.ly API
+  version: 1.0.0
+  description: Domain HTTP API. Auth session tables may still live in Next until auth endpoints exist.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+# Public read endpoints; session-bound routes will add securitySchemes later.
+security: []
+
+servers:
+  - url: http://localhost:4000
+    description: Local API
+  - url: /
+
+tags:
+  - name: Health
+  - name: Stacks
+  - name: Ides
+  - name: Rules
+  - name: Threats
+  - name: Composer
+  - name: Sync
+
+components:
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: RFC 7807 problem type URI
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Stack:
+      type: object
+      required: [id, slug, name, sortOrder, catalogStatus]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        logoPath:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+        catalogStatus:
+          type: string
+          enum: [launch, coming_soon]
+          description: launch stacks ship in MVP UI; coming_soon are placeholders for contributions
+    Ide:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        sortOrder:
+          type: integer
+    IdeListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ide'
+    StackListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stack'
+    StackDetail:
+      allOf:
+        - $ref: '#/components/schemas/Stack'
+        - type: object
+          properties:
+            ruleCount:
+              type: integer
+              description: Rules linked to this stack
+    Threat:
+      type: object
+      required: [publicId, family, name]
+      properties:
+        publicId:
+          type: string
+        family:
+          type: string
+          enum: [owasp_web, owasp_llm, mitre_atlas, vibe_coding]
+        name:
+          type: string
+        severity:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        cveId:
+          type: string
+          nullable: true
+        externalId:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        sourceUrl:
+          type: string
+          nullable: true
+        isActivelyExploited:
+          type: boolean
+        owaspRefs:
+          type: array
+          items:
+            type: string
+    ThreatListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Threat'
+    Rule:
+      type: object
+      required: [id, slug, name, description, version, certified, weeklyUses]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        certified:
+          type: boolean
+        lineCount:
+          type: integer
+          nullable: true
+        weeklyUses:
+          type: integer
+          description: Sum of weekly copy counts from rule_weekly_usage (0 when empty)
+    RuleListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Opaque cursor for next page; null when no more results
+    RuleLayer:
+      type: string
+      enum: [security, architecture, code_quality]
+      description: Guardrail layer (matches DB rule_layer enum)
+    RuleLinkedThreat:
+      type: object
+      required: [publicId, name]
+      properties:
+        publicId:
+          type: string
+          description: Threat primary id (often same as CVE id)
+        cveId:
+          type: string
+          nullable: true
+        name:
+          type: string
+        sourceUrl:
+          type: string
+          nullable: true
+          description: Advisory or NVD reference URL when stored in DB
+    RuleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Rule'
+        - type: object
+          properties:
+            weeklyUses:
+              type: integer
+            bodyMdx:
+              type: string
+              nullable: true
+              description: Markdown body for display or export
+            layers:
+              type: array
+              items:
+                $ref: '#/components/schemas/RuleLayer'
+              description: Layers tagged on this rule
+            linkedThreats:
+              type: array
+              items:
+                $ref: '#/components/schemas/RuleLinkedThreat'
+              description: CVEs / advisories linked via rule_threat_map for trust badges
+    ComposerExportRequest:
+      type: object
+      required: [stackSlug, ideSlug]
+      properties:
+        stackSlug:
+          type: string
+        ideSlug:
+          type: string
+        layers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleLayer'
+          description: If empty, all rules matching stack+ide are included; if set, rule must include every listed layer
+    ComposerExportResponse:
+      type: object
+      required: [format, content, filename]
+      properties:
+        format:
+          type: string
+          enum: [markdown]
+        content:
+          type: string
+        filename:
+          type: string
+    FrameworkFeatureStatus:
+      type: string
+      enum: [built_in, manual_cfg, not_supported]
+    StackCoverageArea:
+      type: object
+      required: [areaName]
+      properties:
+        areaName:
+          type: string
+        coveragePercent:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    StackFrameworkFeature:
+      type: object
+      required: [featureName, status]
+      properties:
+        featureName:
+          type: string
+        status:
+          $ref: '#/components/schemas/FrameworkFeatureStatus'
+        notes:
+          type: string
+          nullable: true
+    ThreatMatrixRow:
+      type: object
+      required: [publicId, name, severity, isMitigatedByRules, family]
+      properties:
+        publicId:
+          type: string
+        name:
+          type: string
+        severity:
+          type: string
+        isMitigatedByRules:
+          type: boolean
+        family:
+          type: string
+    StackOverviewResponse:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - sortOrder
+        - ruleCount
+        - coverageAreas
+        - frameworkFeatures
+        - threatMatrix
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        logoPath:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+        ruleCount:
+          type: integer
+        securityGrade:
+          type: string
+          nullable: true
+        gradeRationale:
+          type: string
+          nullable: true
+        ecosystem:
+          type: string
+          nullable: true
+        nvdKeywords:
+          type: array
+          items:
+            type: string
+        osvEcosystem:
+          type: string
+          nullable: true
+        coverageAreas:
+          type: array
+          items:
+            $ref: '#/components/schemas/StackCoverageArea'
+        frameworkFeatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/StackFrameworkFeature'
+        threatMatrix:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreatMatrixRow'
+    PolicyTemplate:
+      type: object
+      required: [id, slug, name, layer, sortOrder]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        layer:
+          $ref: '#/components/schemas/RuleLayer'
+        sortOrder:
+          type: integer
+    PolicyTemplateListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyTemplate'
+    SyncLogEntry:
+      type: object
+      required: [id, startedAt, status, sourceSummary]
+      properties:
+        id:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        coveragePercent:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        errorMessage:
+          type: string
+          nullable: true
+        sourceSummary:
+          type: object
+          additionalProperties: true
+    SyncLogListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncLogEntry'
+
+paths:
+  /v1/health:
+    get:
+      operationId: getV1Health
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/ides:
+    get:
+      operationId: listV1Ides
+      tags: [Ides]
+      summary: List IDEs/agents for composer
+      responses:
+        '200':
+          description: IDEs ordered by sortOrder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdeListResponse'
+
+  /v1/stacks:
+    get:
+      operationId: listV1Stacks
+      tags: [Stacks]
+      summary: List stacks for directory and homepage cards
+      responses:
+        '200':
+          description: Stacks ordered by sortOrder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackListResponse'
+        '500':
+          description: Server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/stacks/{stackSlug}:
+    get:
+      operationId: getV1StackBySlug
+      tags: [Stacks]
+      summary: Stack overview by slug
+      parameters:
+        - name: stackSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stack detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackDetail'
+        '404':
+          description: Unknown stack
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/stacks/{stackSlug}/overview:
+    get:
+      operationId: getV1StackOverview
+      tags: [Stacks]
+      summary: Stack security overview (grades, coverage, framework, threat matrix)
+      parameters:
+        - name: stackSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Overview payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackOverviewResponse'
+        '404':
+          description: Unknown stack
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/stacks/{stackSlug}/policy-templates:
+    get:
+      operationId: listV1PolicyTemplatesByStack
+      tags: [Composer]
+      summary: Policy templates linked to a stack (composer presets)
+      parameters:
+        - name: stackSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Templates ordered by sortOrder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyTemplateListResponse'
+
+  /v1/sync/logs:
+    get:
+      operationId: listV1SyncLogs
+      tags: [Sync]
+      summary: Recent catalog sync / pipeline runs
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: Latest sync_log rows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncLogListResponse'
+
+  /v1/threats:
+    get:
+      operationId: listV1Threats
+      tags: [Threats]
+      summary: List threat catalog entries
+      responses:
+        '200':
+          description: Threats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreatListResponse'
+
+  /v1/rules:
+    get:
+      operationId: listV1Rules
+      tags: [Rules]
+      summary: Paginated rules directory
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Opaque cursor from previous response
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: stackSlug
+          in: query
+          required: false
+          schema:
+            type: string
+          description: When set, only rules linked to this stack (ordered by rule id)
+      responses:
+        '200':
+          description: Page of rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleListResponse'
+        '400':
+          description: Invalid pagination or unknown stack
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/rules/{ruleSlug}:
+    get:
+      operationId: getV1RuleBySlug
+      tags: [Rules]
+      summary: Rule detail by slug
+      parameters:
+        - name: ruleSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rule with optional markdown body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleDetail'
+        '404':
+          description: Unknown rule
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/composer/export:
+    post:
+      operationId: postV1ComposerExport
+      tags: [Composer]
+      summary: Build a merged rules export for stack, IDE, and optional layers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComposerExportRequest'
+      responses:
+        '200':
+          description: Export payload (download client-side)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComposerExportResponse'
+        '400':
+          description: Invalid request or unknown stack/ide
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'

@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-04T04:06:10.977Z",
+  "threats": [
+    {
+      "publicId": "CVE-2026-31431",
+      "family": "owasp_web",
+      "name": "Linux Kernel Incorrect Resource Transfer Between Spheres Vulnerability",
+      "severity": "high",
+      "description": "Linux Kernel contains an incorrect resource transfer between spheres vulnerability that could allow for privilege escalation.",
+      "cveId": "CVE-2026-31431",
+      "externalId": "CVE-2026-31431",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2026-41940",
+      "family": "owasp_web",
+      "name": "WebPros cPanel & WHM and WP2 (WordPress Squared) Missing Authentication for Critical Function Vulnerability",
+      "severity": "high",
+      "description": "WebPros cPanel & WHM (WebHost Manager) and WP2 (WordPress Squared) contain an authentication bypass vulnerability in the login flow that allows unauthenticated remote attackers to gain unauthorized access to the control panel.",
+      "cveId": "CVE-2026-41940",
+      "externalId": "CVE-2026-41940",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2024-1708",
+      "family": "owasp_web",
+      "name": "ConnectWise ScreenConnect Path Traversal Vulnerability",
+      "severity": "high",
+      "description": "ConnectWise ScreenConnect contains a path traversal vulnerability which could allow an attacker to execute remote code or directly impact confidential data and critical systems.",
+      "cveId": "CVE-2024-1708",
+      "externalId": "CVE-2024-1708",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2026-32202",
+      "family": "owasp_web",
+      "name": "Microsoft Windows Protection Mechanism Failure Vulnerability",
+      "severity": "high",
+      "description": "Microsoft Windows Shell contains a protection mechanism failure vulnerability that allows an unauthorized attacker to perform spoofing over a network.",
+      "cveId": "CVE-2026-32202",
+      "externalId": "CVE-2026-32202",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2025-29635",
+      "family": "owasp_web",
+      "name": "D-Link DIR-823X Command Injection Vulnerability",
+      "severity": "high",
+      "description": "D-Link DIR-823X contains a command injection vulnerability that allows an authorized attacker to execute arbitrary commands on remote devices by sending a POST request to /goform/set_prohibiting via the corresponding function. The impacted product could be end-of-life (EoL) and/or end-of-service (EoS). Users should discontinue product utilization.",
+      "cveId": "CVE-2025-29635",
+      "externalId": "CVE-2025-29635",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2024-7399",
+      "family": "owasp_web",
+      "name": "Samsung MagicINFO 9 Server Path Traversal Vulnerability",
+      "severity": "high",
+      "description": "Samsung MagicINFO 9 Server contains a path traversal vulnerability that could allow an attacker to write arbitrary files as system authority.",
+      "cveId": "CVE-2024-7399",
+      "externalId": "CVE-2024-7399",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2024-57728",
+      "family": "owasp_web",
+      "name": "SimpleHelp Path Traversal Vulnerability",
+      "severity": "high",
+      "description": "SimpleHelp contains a path traversal vulnerability that allows admin users to upload arbitrary files anywhere on the file system by uploading a crafted zip file (i.e. zip slip). This can be exploited to execute arbitrary code on the host in the context of the SimpleHelp server user.",
+      "cveId": "CVE-2024-57728",
+      "externalId": "CVE-2024-57728",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "CVE-2024-57726",
+      "family": "owasp_web",
+      "name": "SimpleHelp Missing Authorization Vulnerability",
+      "severity": "high",
+      "description": "SimpleHelp contains a missing authorization vulnerability that could allow low-privileged technicians to create API keys with excessive permissions. These API keys can be used to escalate privileges to the server admin role.",
+      "cveId": "CVE-2024-57726",
+      "externalId": "CVE-2024-57726",
+      "source": "cisa_kev",
+      "sourceUrl": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "isActivelyExploited": true
+    },
+    {
+      "publicId": "GHSA-223j-4rm8-mrmf",
+      "family": "owasp_web",
+      "name": "Next.js may leak x-middleware-subrequest-id to external hosts",
+      "severity": "medium",
+      "description": "Next.js may leak x-middleware-subrequest-id to external hosts",
+      "cveId": null,
+      "externalId": "GHSA-223j-4rm8-mrmf",
+      "source": "osv",
+      "sourceUrl": "https://osv.dev/vulnerability/GHSA-223j-4rm8-mrmf",
+      "isActivelyExploited": false
+    },
+    {
+      "publicId": "GHSA-25mp-g6fv-mqxx",
+      "family": "owasp_web",
+      "name": "Unexpected server crash in Next.js.",
+      "severity": "medium",
+      "description": "Unexpected server crash in Next.js.",
+      "cveId": null,
+      "externalId": "GHSA-25mp-g6fv-mqxx",
+      "source": "osv",
+      "sourceUrl": "https://osv.dev/vulnerability/GHSA-25mp-g6fv-mqxx",
+      "isActivelyExploited": false
+    },
+    {
+      "publicId": "GHSA-3f5c-4qxj-vmpf",
+      "family": "owasp_web",
+      "name": "Next.js Directory Traversal Vulnerability",
+      "severity": "medium",
+      "description": "Next.js Directory Traversal Vulnerability",
+      "cveId": null,
+      "externalId": "GHSA-3f5c-4qxj-vmpf",
+      "source": "osv",
+      "sourceUrl": "https://osv.dev/vulnerability/GHSA-3f5c-4qxj-vmpf",
+      "isActivelyExploited": false
+    },
+    {
+      "publicId": "GHSA-3h52-269p-cp9r",
+      "family": "owasp_web",
+      "name": "Information exposure in Next.js dev server due to lack of origin verification",
+      "severity": "medium",
+      "description": "Information exposure in Next.js dev server due to lack of origin verification",
+      "cveId": null,
+      "externalId": "GHSA-3h52-269p-cp9r",
+      "source": "osv",
+      "sourceUrl": "https://osv.dev/vulnerability/GHSA-3h52-269p-cp9r",
+      "isActivelyExploited": false
+    },
+    {
+      "publicId": "GHSA-3x4c-7xq6-9pq8",
+      "family": "owasp_web",
+      "name": "Next.js: Unbounded next/image disk cache growth can exhaust storage",
+      "severity": "medium",
+      "description": "Next.js: Unbounded next/image disk cache growth can exhaust storage",
+      "cveId": null,
+      "externalId": "GHSA-3x4c-7xq6-9pq8",
+      "source": "osv",
+      "sourceUrl": "https://osv.dev/vulnerability/GHSA-3x4c-7xq6-9pq8",
+      "isActivelyExploited": false
+    }
+  ],
+  "threatStacks": [
+    {
+      "threatPublicId": "CVE-2026-31431",
+      "stackSlug": "nextjs",
+      "severity": "high",
+      "isMitigatedByRules": true
+    },
+    {
+      "threatPublicId": "CVE-2026-41940",
+      "stackSlug": "express",
+      "severity": "high",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "CVE-2024-1708",
+      "stackSlug": "fastapi",
+      "severity": "high",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "CVE-2026-32202",
+      "stackSlug": "nextjs",
+      "severity": "high",
+      "isMitigatedByRules": true
+    },
+    {
+      "threatPublicId": "CVE-2025-29635",
+      "stackSlug": "express",
+      "severity": "high",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "CVE-2024-7399",
+      "stackSlug": "fastapi",
+      "severity": "high",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "CVE-2024-57728",
+      "stackSlug": "nextjs",
+      "severity": "high",
+      "isMitigatedByRules": true
+    },
+    {
+      "threatPublicId": "CVE-2024-57726",
+      "stackSlug": "express",
+      "severity": "high",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "GHSA-223j-4rm8-mrmf",
+      "stackSlug": "fastapi",
+      "severity": "medium",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "GHSA-25mp-g6fv-mqxx",
+      "stackSlug": "nextjs",
+      "severity": "medium",
+      "isMitigatedByRules": true
+    },
+    {
+      "threatPublicId": "GHSA-3f5c-4qxj-vmpf",
+      "stackSlug": "express",
+      "severity": "medium",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "GHSA-3h52-269p-cp9r",
+      "stackSlug": "fastapi",
+      "severity": "medium",
+      "isMitigatedByRules": false
+    },
+    {
+      "threatPublicId": "GHSA-3x4c-7xq6-9pq8",
+      "stackSlug": "nextjs",
+      "severity": "medium",
+      "isMitigatedByRules": true
+    }
+  ],
+  "syncMeta": {
+    "kev": {
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "ingested": 8,
+      "cap": 8
+    },
+    "osv": {
+      "ecosystem": "npm",
+      "ingested": 5
+    },
+    "ghsa": {
+      "ingested": 0,
+      "error": "GITHUB_TOKEN not set"
+    },
+    "dbUpsert": "skipped"
+  }
+}

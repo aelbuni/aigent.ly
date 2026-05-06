@@ -1,0 +1,26 @@
+# Apply Drizzle migrations to the database pointed to by DATABASE_URL.
+# Add repository secret DATABASE_URL (e.g. production Postgres). Run manually after merges that change schema.
+
+name: db-migrate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Drizzle migrations
+        run: npm run db:migrate -w web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

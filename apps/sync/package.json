@@ -1,0 +1,21 @@
+{
+  "name": "sync",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@aigently/db": "*",
+    "@aigently/mvp-catalog": "*",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,47 @@
+/* Learn whitepaper — matches Stitch export (dot grid density, reveal motion). */
+
+.dotGridLearn {
+  background-image: radial-gradient(circle, #777584 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.05;
+}
+
+@keyframes learnReveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animateReveal {
+  animation: learnReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.delay100 {
+  animation-delay: 0.1s;
+}
+.delay200 {
+  animation-delay: 0.2s;
+}
+.delay300 {
+  animation-delay: 0.3s;
+}
+.delay400 {
+  animation-delay: 0.4s;
+}
+.delay500 {
+  animation-delay: 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animateReveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

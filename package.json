@@ -1,0 +1,26 @@
+{
+  "name": "aigently",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "dev:api": "npm run dev -w api",
+    "build": "npm run build -w web && npm run build -w api",
+    "start": "npm run start -w web",
+    "lint": "npm run lint -w web",
+    "openapi:lint": "npx --yes @redocly/cli@1 lint specs/openapi.yaml",
+    "codegen:api-client": "npm run codegen -w @aigently/api-client",
+    "db:up": "docker compose up -d",
+    "db:generate": "npm run db:generate -w web",
+    "db:migrate": "npm run db:migrate -w web",
+    "db:studio": "npm run db:studio -w web",
+    "db:seed": "npm run db:seed -w web",
+    "db:seed:upsert": "npm run db:seed:upsert -w web",
+    "sync:catalog": "npm run sync -w sync",
+    "verify:local-api": "node scripts/verify-local-api.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

@@ -1,0 +1,37 @@
+---
+alwaysApply: false
+---
+# Aigent.ly — implementation alignment
+
+## Source of truth
+- Product behavior, IA, components, and v1 scope: repo `prd.md` (treat as authoritative).
+- Visual references only: `stitch_prototype/` (HTML + Tailwind CDN + DESIGN tokens). Do not copy CDN Tailwind or prototype-only fonts/icons as the production pattern unless explicitly asked.
+
+## Stack (do not drift)
+- Framework: Next.js 15, App Router, TypeScript strict.
+- Styling: Tailwind CSS v4, utility-first; shadcn/ui; Lucide; Geist via `next/font` (fallback Inter per PRD).
+- Content: MDX for rules/learn; static JSON for threats (no live CVE API in v1).
+- Search/state: Fuse.js (client), nuqs (URL state), Zustand + localStorage for ratings v1.
+- Other PRD libs as specified: Shiki, next-mdx-remote, Framer Motion (light), sonner, next-themes.
+
+## V1 boundaries (do not add without explicit approval)
+- No user authentication or accounts.
+- No backend API or database for v1; no CMS — everything static or localStorage.
+- No on-site community submission form (GitHub PR flow).
+- Defer: payments, email newsletter, social login, real-time CVE feeds.
+
+## Performance / UX (from PRD)
+- Prefer SSG: `generateStaticParams` for rule listings where applicable.
+- Lighthouse-oriented: next/image with dimensions, next/font, client-side filters without API round-trips.
+- Accessibility: keyboard, ARIA on icon buttons, focus rings, skip link.
+
+## Hosting: Hostinger (production)
+- Deploy to Hostinger (Node Web App Git deploy or VPS); use platform `PORT` for `next start` when applicable.
+- Do not rely on Vercel-only services in production: replace `@vercel/analytics` with a Hostinger-compatible alternative or omit in v1; do not depend on Vercel KV for core flows.
+- Avoid Edge-only Next features for critical v1 paths unless confirmed supported on the chosen Hostinger runtime; prefer Node runtime or static generation.
+
+## Repo layout
+- Prefer monorepo shape from PRD: `apps/web` as the Next app with `app/` routes matching PRD tree.
+
+## When unsure
+- Re-read `prd.md` sections for the feature; if still ambiguous, ask the user before expanding scope.

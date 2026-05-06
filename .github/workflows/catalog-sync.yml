@@ -1,0 +1,35 @@
+name: Catalog sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      upsert_db:
+        description: "Postgres upsert + MV refresh (set DATABASE_URL repo secret)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Regenerate catalog.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CATALOG_UPSERT_DB: ${{ inputs.upsert_db == true && '1' || '0' }}
+          CATALOG_KEV_CAP: "50"
+        run: npm run sync:catalog
