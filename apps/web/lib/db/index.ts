@@ -5,13 +5,12 @@ import pg from "pg";
 
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL ?? "";
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-const pool = new pg.Pool({ connectionString });
+const pool = new pg.Pool({
+  connectionString: connectionString || undefined,
+  // Pool creation is deferred — error surfaces at query time, not import time
+});
 
 export const db = drizzle(pool, { schema });
 export { pool };
