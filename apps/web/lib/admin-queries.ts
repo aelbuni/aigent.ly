@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, lt, sql } from "drizzle-orm";
 import {
   db,
   layer,
@@ -460,6 +460,117 @@ export async function getLLMConfig() {
   }));
 
   return { global, tasks };
+}
+
+// ── Core objective metrics ────────────────────────────────────────────────────
+
+export async function getCoreObjectiveMetrics() {
+  const [
+    amplificationResult,
+    guardrailCountResult,
+    stackCountResult,
+    activeLayerCountResult,
+    scoreResult,
+    layerAssignedResult,
+  ] = await Promise.all([
+    // Objective 1: threats with aiAmplification populated
+    db.select({
+      amplified: sql<number>`COUNT(CASE WHEN ${threat.aiAmplification} IS NOT NULL THEN 1 END)::int`,
+      total: sql<number>`COUNT(*)::int`,
+    }).from(threat),
+
+    // Objective 2: guardrails that exist
+    db.select({ covered: sql<number>`COUNT(*)::int` }).from(summarizedGuardrail),
+
+    // Denominators for coverage
+    db.select({ n: sql<number>`COUNT(*)::int` }).from(stack),
+    db.select({ n: sql<number>`COUNT(*)::int` }).from(layer).where(eq(layer.isActive, true)),
+
+    // Objective 3: avg quality score and conflict-free count
+    db.select({
+      avgScore: sql<number | null>`AVG(COALESCE(${summarizedGuardrail.scoreOverride}, ${summarizedGuardrail.qualityScore}))`,
+      conflictFree: sql<number>`COUNT(CASE WHEN ${summarizedGuardrail.conflictCount} = 0 THEN 1 END)::int`,
+      guardrailTotal: sql<number>`COUNT(*)::int`,
+    }).from(summarizedGuardrail),
+
+    // Objective 4: threats with at least one layer assignment
+    db.select({ assigned: sql<number>`COUNT(DISTINCT ${threatLayer.threatId})::int` }).from(threatLayer),
+  ]);
+
+  const totalThreats = amplificationResult[0]?.total ?? 0;
+  const amplified = amplificationResult[0]?.amplified ?? 0;
+  const covered = guardrailCountResult[0]?.covered ?? 0;
+  const totalPairs = (stackCountResult[0]?.n ?? 0) * (activeLayerCountResult[0]?.n ?? 0);
+  const avgScore = scoreResult[0]?.avgScore;
+  const conflictFree = scoreResult[0]?.conflictFree ?? 0;
+  const guardrailTotal = scoreResult[0]?.guardrailTotal ?? 0;
+  const layerAssigned = layerAssignedResult[0]?.assigned ?? 0;
+
+  return {
+    amplified,
+    totalThreats,
+    amplificationPercent: totalThreats > 0 ? Math.round((amplified / totalThreats) * 100) : 0,
+    guardrailsCovered: covered,
+    totalPairs,
+    coveragePercent: totalPairs > 0 ? Math.round((covered / totalPairs) * 100) : 0,
+    avgQualityScore: avgScore != null ? Math.round(Number(avgScore) * 10) / 10 : null,
+    conflictFreeCount: conflictFree,
+    guardrailTotal,
+    conflictFreePercent: guardrailTotal > 0 ? Math.round((conflictFree / guardrailTotal) * 100) : 0,
+    layerAssignedThreats: layerAssigned,
+    layerAssignmentPercent: totalThreats > 0 ? Math.round((layerAssigned / totalThreats) * 100) : 0,
+  };
+}
+
+// ── Pipeline phase status ─────────────────────────────────────────────────────
+
+export async function getPipelinePhaseStatus() {
+  const [
+    latestRunResult,
+    unamplifiedResult,
+    unassignedResult,
+    staleGuardrailsResult,
+    zeroStrengthRulesResult,
+    zombieRunsResult,
+  ] = await Promise.all([
+    // Latest sync run
+    db.select().from(syncLog).orderBy(desc(syncLog.startedAt)).limit(1),
+
+    // Phase 2: threats needing amplification
+    db.select({ count: sql<number>`COUNT(*)::int` }).from(threat).where(isNull(threat.aiAmplification)),
+
+    // Phase 4: threats with 0 layer assignments
+    db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(threat)
+      .leftJoin(threatLayer, eq(threat.publicId, threatLayer.threatId))
+      .where(isNull(threatLayer.threatId)),
+
+    // Phase 4: stale guardrails (expiresAt in the past)
+    db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(summarizedGuardrail)
+      .where(lt(summarizedGuardrail.expiresAt, new Date())),
+
+    // Phase 3: rules with strength 0 (proxy for unsummarized)
+    db.select({ count: sql<number>`COUNT(*)::int` }).from(rule).where(eq(rule.strengthScore, 0)),
+
+    // Zombie runs: stuck "running" for > 30 min
+    db.select({ id: syncLog.id, startedAt: syncLog.startedAt })
+      .from(syncLog)
+      .where(and(
+        eq(syncLog.status, "running"),
+        lt(syncLog.startedAt, new Date(Date.now() - 30 * 60 * 1000)),
+      )),
+  ]);
+
+  return {
+    lastSyncRun: latestRunResult[0] ?? null,
+    sourceSummary: (latestRunResult[0]?.sourceSummary ?? {}) as Record<string, unknown>,
+    unamplifiedThreats: unamplifiedResult[0]?.count ?? 0,
+    unassignedThreats: unassignedResult[0]?.count ?? 0,
+    staleGuardrails: staleGuardrailsResult[0]?.count ?? 0,
+    zeroStrengthRules: zeroStrengthRulesResult[0]?.count ?? 0,
+    zombieRuns: zombieRunsResult,
+  };
 }
 
 // ── Guardrail quality score (0–10) ────────────────────────────────────────────
