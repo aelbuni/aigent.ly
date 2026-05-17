@@ -15,7 +15,7 @@ import { AdminPageHeader } from "@/components/nextadmin/admin-page-header";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
-import { db, layer, stack, summarizedGuardrail } from "@/lib/db";
+import { db, layer, stack, ruleStack, summarizedGuardrail } from "@/lib/db";
 import { listGuardrails, getGuardrailCoverage } from "@/lib/admin-queries";
 import { runSummarizerForLayer } from "@/lib/summarizer/pipeline";
 import { BulkGeneratePanel } from "@/features/admin-guardrails/components/bulk-generate-panel";
@@ -55,13 +55,27 @@ async function requireAdmin() {
   if (session?.user?.role !== "admin") redirect("/");
 }
 
-async function generateGuardrailAction(stackSlug: string, layerSlug: string) {
+async function generateGuardrailAction(fd: FormData) {
   "use server";
   await requireAdmin();
-  await runSummarizerForLayer(stackSlug, layerSlug);
+  const stackSlug = fd.get("stackSlug") as string;
+  const layerSlug = (fd.get("layerSlug") as string) || "";
+  if (!stackSlug) return;
+
+  if (layerSlug) {
+    await runSummarizerForLayer(stackSlug, layerSlug, "all", undefined, true);
+  } else {
+    const layers = await db
+      .select({ slug: layer.slug })
+      .from(layer)
+      .where(eq(layer.isActive, true))
+      .orderBy(layer.sortOrder);
+    await Promise.allSettled(
+      layers.map((l) => runSummarizerForLayer(stackSlug, l.slug, "all", undefined, true))
+    );
+  }
   revalidatePath("/admin/guardrails");
 }
-
 
 export default async function GuardrailsPage({
   searchParams,
@@ -72,20 +86,22 @@ export default async function GuardrailsPage({
   const page = Number(params.page ?? 1);
   const stackFilter = params.stack?.trim() || undefined;
   const layerFilter = params.layer?.trim() || undefined;
-  const [{ rows, total }, allStacks, allLayers, coverage] = await Promise.all([
+
+  const [{ rows, total }, allStacks, activeLayers, coverage, stackRuleCounts] = await Promise.all([
     listGuardrails({ page, perPage: 25, stackSlug: stackFilter, layerSlug: layerFilter }),
     db.select({ id: stack.id, slug: stack.slug, name: stack.name }).from(stack).orderBy(stack.sortOrder),
-    db.select({ id: layer.id, slug: layer.slug, name: layer.name }).from(layer).orderBy(layer.sortOrder),
+    db.select({ id: layer.id, slug: layer.slug, name: layer.name }).from(layer).where(eq(layer.isActive, true)).orderBy(layer.sortOrder),
     getGuardrailCoverage(),
+    db.selectDistinct({ stackId: ruleStack.stackId }).from(ruleStack),
   ]);
   const { totalPairs, coveredPairs, coveragePct } = coverage;
-  // stackSlug and layerSlug are now returned directly by listGuardrails
+  const stacksWithRules = new Set(stackRuleCounts.map((r) => r.stackId));
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Cached Guardrails"
-        description={`${total} cached AI summaries`}
+        title="Guardrails"
+        description="AI-generated security summaries per stack × layer pair. Each guardrail combines the rules for that stack/layer into an actionable guide for IDE assistants."
       />
 
       {/* Coverage progress bar */}
@@ -104,45 +120,50 @@ export default async function GuardrailsPage({
         </div>
         {coveragePct < 10 && (
           <p className="mt-2 text-xs text-[#D34053]">
-            ⚠ Coverage critically low — use Bulk Generate to fill missing pairs
+            ⚠ Coverage critically low — use Bulk Generate or pick a stack below to fill missing pairs
           </p>
         )}
       </div>
 
       {/* Generate on-demand form */}
       <div className="rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark sm:p-6">
-        <h2 className="text-dark mb-4 text-base font-semibold dark:text-white">Generate guardrail</h2>
+        <div className="mb-1">
+          <h2 className="text-dark text-base font-semibold dark:text-white">Generate guardrail</h2>
+          <p className="mt-0.5 text-xs text-dark-6">
+            Select a stack to generate guardrails. Layer is optional — leave blank to generate for all active layers at once.
+            Stacks without rules will produce empty guardrails.
+          </p>
+        </div>
         <form
-          action={async (fd: FormData) => {
-            "use server";
-            const stackSlug = fd.get("stackSlug") as string;
-            const layerSlug = fd.get("layerSlug") as string;
-            if (stackSlug && layerSlug) await generateGuardrailAction(stackSlug, layerSlug);
-          }}
-          className="flex flex-wrap items-end gap-3"
+          action={generateGuardrailAction}
+          className="mt-4 flex flex-wrap items-end gap-3"
         >
           <div className="space-y-1">
-            <label className="text-dark-6 text-xs font-medium">Stack</label>
+            <label className="text-dark-6 text-xs font-medium">Stack <span className="text-[#D34053]">*</span></label>
             <select
               name="stackSlug"
               required
-              className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-10 min-w-[160px] rounded border px-3 text-sm outline-none"
+              className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-10 min-w-[180px] rounded border px-3 text-sm outline-none"
             >
               <option value="">Select stack…</option>
-              {allStacks.map((s) => (
-                <option key={s.id} value={s.slug}>{s.name}</option>
-              ))}
+              {allStacks.map((s) => {
+                const hasRules = stacksWithRules.has(s.id);
+                return (
+                  <option key={s.id} value={s.slug}>
+                    {s.name}{!hasRules ? " ⚠ no rules" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-dark-6 text-xs font-medium">Layer</label>
+            <label className="text-dark-6 text-xs font-medium">Layer <span className="text-dark-6 font-normal">(optional — blank = all active layers)</span></label>
             <select
               name="layerSlug"
-              required
-              className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-10 min-w-[180px] rounded border px-3 text-sm outline-none"
+              className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-10 min-w-[220px] rounded border px-3 text-sm outline-none"
             >
-              <option value="">Select layer…</option>
-              {allLayers.map((l) => (
+              <option value="">All active layers</option>
+              {activeLayers.map((l) => (
                 <option key={l.id} value={l.slug}>{l.name}</option>
               ))}
             </select>
@@ -182,7 +203,7 @@ export default async function GuardrailsPage({
             className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-9 min-w-[180px] rounded border px-3 text-sm outline-none"
           >
             <option value="">All layers</option>
-            {allLayers.map((l) => (
+            {activeLayers.map((l) => (
               <option key={l.id} value={l.slug}>{l.name}</option>
             ))}
           </select>
