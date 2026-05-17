@@ -209,8 +209,9 @@ export async function listThreats(params: { page: number; perPage: number; searc
         isActivelyExploited: threat.isActivelyExploited,
         publishedAt: threat.publishedAt,
         cveId: threat.cveId,
-        layerCount: sql<number>`(SELECT count(*) FROM threat_layer tl WHERE tl.threat_id = "threat"."public_id")`,
-        stackCount: sql<number>`(SELECT count(*) FROM threat_stack ts WHERE ts.threat_id = "threat"."public_id")`,
+        isAmplified: sql<boolean>`(${threat.aiAmplification} IS NOT NULL)`,
+        layerCount: sql<number>`(SELECT count(*)::int FROM threat_layer tl WHERE tl.threat_id = "threat"."public_id")`,
+        stackCount: sql<number>`(SELECT count(*)::int FROM threat_stack ts WHERE ts.threat_id = "threat"."public_id")`,
       })
       .from(threat)
       .where(conditions.length ? and(...conditions) : undefined)
