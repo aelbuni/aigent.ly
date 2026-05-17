@@ -608,11 +608,11 @@ export async function getGuardrailCoverage() {
     matrixRows,
     uncoveredResult,
   ] = await Promise.all([
-    // Total stacks
-    db.select({ count: count() }).from(stack),
+    // All stacks (full rows for matrix)
+    db.select({ id: stack.id, slug: stack.slug, name: stack.name }).from(stack).orderBy(stack.sortOrder),
 
-    // Total active layers
-    db.select({ count: count() }).from(layer).where(eq(layer.isActive, true)),
+    // All active layers (full rows for matrix)
+    db.select({ id: layer.id, slug: layer.slug, name: layer.name }).from(layer).where(eq(layer.isActive, true)).orderBy(layer.sortOrder),
 
     // Covered pairs (have a summarized_guardrail row)
     db.select({ count: count() }).from(summarizedGuardrail),
@@ -696,8 +696,8 @@ export async function getGuardrailCoverage() {
     `),
   ]);
 
-  const allStacksCount = allStacksResult[0]?.count ?? 0;
-  const allActiveLayersCount = allActiveLayersResult[0]?.count ?? 0;
+  const allStacksCount = allStacksResult.length;
+  const allActiveLayersCount = allActiveLayersResult.length;
   const totalPairs = allStacksCount * allActiveLayersCount;
   const coveredPairs = coveredPairsRow?.count ?? 0;
 
@@ -715,6 +715,8 @@ export async function getGuardrailCoverage() {
     totalPairs,
     coveredPairs,
     coveragePct: totalPairs > 0 ? Math.round((coveredPairs / totalPairs) * 100) : 0,
+    allStacks: allStacksResult,
+    allActiveLayers: allActiveLayersResult,
     perStack,
     qualityStats: qualityStatsRow ?? {
       avgScore: 0,
