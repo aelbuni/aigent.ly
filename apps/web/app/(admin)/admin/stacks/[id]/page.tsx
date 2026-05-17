@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 export default async function StackDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const stackId = Number(id);
+  if (!Number.isInteger(stackId) || stackId <= 0) notFound();
 
   const stackRows = await db.select().from(stack).where(eq(stack.id, stackId)).limit(1);
 
