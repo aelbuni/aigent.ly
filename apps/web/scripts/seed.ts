@@ -7,12 +7,18 @@ import {
   COMING_SOON_STACK_SLUGS,
   isShippableThreat,
   LAUNCH_STACK_SLUGS,
+  STACK_REGISTRY,
 } from "@aigently/mvp-catalog";
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { CWE_TO_OWASP_WEB } from "./lib/normalise";
+import { getCwePatternLines } from "./lib/cwe-patterns";
+import { computeStrengthScore } from "../lib/rules-directory-showcase";
 
 import {
   db,
   ide,
+  layer,
+  owaspLayerMapping,
   policyTemplate,
   policyTemplateStack,
   rule,
@@ -23,9 +29,8 @@ import {
   ruleReviewHelpful,
   ruleThreatMap,
   ruleUsageDaily,
+  sourceLayerMapping,
   stack,
-  stackCoverageArea,
-  stackFrameworkFeature,
   threat,
   threatStack,
 } from "../lib/db";
@@ -35,6 +40,7 @@ const REPO_ROOT = join(__dirname, "..", "..", "..");
 const CATALOG_DIR = join(REPO_ROOT, "packages", "catalog-data");
 
 const CONTEXT_WARN_CHARS = 450;
+type RuleContentType = "patterns" | "deps";
 
 type MasterThreat = {
   publicId: string;
@@ -72,19 +78,7 @@ type ThreatStackFile = {
   threatStackRows: { threatId: string; stackSlug: string; severity: string }[];
 };
 
-const STACK_DISPLAY: Record<string, { name: string; ecosystem?: string; nvdKeywords?: string[]; osv?: string }> = {
-  nextjs: { name: "Next.js", ecosystem: "npm", nvdKeywords: ["next.js", "react"], osv: "npm" },
-  "react-spa": { name: "React SPA", ecosystem: "npm", nvdKeywords: ["react"], osv: "npm" },
-  express: { name: "Express / Node.js", ecosystem: "npm", nvdKeywords: ["express", "node.js"], osv: "npm" },
-  nestjs: { name: "NestJS", ecosystem: "npm", nvdKeywords: ["nestjs"], osv: "npm" },
-  nuxt: { name: "Nuxt", ecosystem: "npm", nvdKeywords: ["nuxt"], osv: "npm" },
-  fastapi: { name: "FastAPI / Python", ecosystem: "pypi", nvdKeywords: ["fastapi"], osv: "PyPI" },
-  django: { name: "Django", ecosystem: "pypi", nvdKeywords: ["django"], osv: "PyPI" },
-  rails: { name: "Ruby on Rails", ecosystem: "rubygems", nvdKeywords: ["rails"], osv: "RubyGems" },
-  go: { name: "Go", ecosystem: "go", nvdKeywords: ["gin"], osv: "Go" },
-  ios: { name: "iOS / Swift", ecosystem: "swift", nvdKeywords: ["ios"], osv: "SwiftPM" },
-  android: { name: "Android / Kotlin", ecosystem: "maven", nvdKeywords: ["android"], osv: "Maven" },
-};
+// Stack metadata is now in STACK_REGISTRY (packages/mvp-catalog/src/stack-registry.ts)
 
 function mapThreatSource(raw: string | null | undefined, sourceUrl: string): "ghsa" | "nvd" | "osv" | "cisa_kev" {
   const u = sourceUrl.toLowerCase();
@@ -94,17 +88,10 @@ function mapThreatSource(raw: string | null | undefined, sourceUrl: string): "gh
   return "osv";
 }
 
-function stripMdcFrontmatter(raw: string): string {
-  if (!raw.startsWith("---\n")) return raw;
-  const end = raw.indexOf("\n---\n", 4);
-  if (end === -1) return raw;
-  return raw.slice(end + 5).trimStart();
-}
-
 /** Fallback Context text: strip markdown noise, first ~2 sentences, ~320 char cap at sentence end. */
 function compactDescription(raw: string | null | undefined): string {
   if (!raw) return "";
-  let s = raw.replace(/\s+/g, " ").replace(/\*\*|#{1,6}\s?|`+/g, "").trim();
+  const s = raw.replace(/\s+/g, " ").replace(/\*\*|#{1,6}\s?|`+/g, "").trim();
   const sentences = s.split(/(?<=[.!?])\s+/).filter(Boolean);
   let out = sentences.slice(0, 2).join(" ");
   if (out.length > 320) {
@@ -126,22 +113,167 @@ function pinLineFromProducts(t: MasterThreat): string {
     .join("; ");
 }
 
-function buildStackRuleBody(stackSlug: string, rows: MasterThreat[]): string {
+function stackRuleSlug(stackSlug: string, contentType: RuleContentType): string {
+  if (contentType === "patterns") return `${stackSlug}-security-patterns-v1`;
+  return `${stackSlug}-security-deps-v1`;
+}
+
+function sortThreatRows(rows: MasterThreat[]): MasterThreat[] {
+  const sev = (s: string | null | undefined) =>
+    s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
+  return [...rows].sort((a, b) => sev(a.severity) - sev(b.severity));
+}
+
+function ecosystemDependencyTreeCommand(stackSlug: string, packageName: string): string {
+  const cfg = STACK_REGISTRY.find(s => s.slug === stackSlug);
+  const ecosystem = cfg?.ecosystem;
+  if (ecosystem === "npm") return `npm ls ${packageName}`;
+  if (ecosystem === "pypi") return `python -m pip show ${packageName}`;
+  if (ecosystem === "rubygems") return `bundle info ${packageName}`;
+  if (ecosystem === "go") return `go mod why -m ${packageName}`;
+  return `# check dependency tree for ${packageName}`;
+}
+
+function guessSafePatternsForThreat(t: MasterThreat): string[] {
+  const name = `${t.name ?? ""}`.toLowerCase();
+  const patterns: string[] = [];
+
+  if (name.includes("ssrf") || name.includes("server-side request forgery")) {
+    patterns.push("NEVER fetch attacker-controlled URLs from server code.");
+    patterns.push("ALWAYS validate outbound request hostnames against an explicit allowlist.");
+  } else if (name.includes("authorization") || name.includes("auth") || name.includes("bypass")) {
+    patterns.push("NEVER rely on pathname-only middleware checks for authorization.");
+    patterns.push("ALWAYS enforce authorization at the request handler boundary (API/route) as defense-in-depth.");
+  } else if (name.includes("cache poison")) {
+    patterns.push("NEVER cache personalized SSR responses without strict cache-control and vary discipline.");
+    patterns.push("ALWAYS review caching behavior for SSR routes handling auth/session state.");
+  } else if (name.includes("prototype pollution")) {
+    patterns.push("NEVER merge untrusted objects into configs without guarding against prototype keys.");
+    patterns.push("ALWAYS validate and sanitize user-controlled JSON before passing into library config merges.");
+  } else if (name.includes("header injection")) {
+    patterns.push("NEVER construct outgoing HTTP headers from untrusted input without normalization/allowlisting.");
+    patterns.push("ALWAYS treat request-derived header values as untrusted data.");
+  } else if (name.includes("redos") || name.includes("regular expression")) {
+    patterns.push("NEVER run complex regexes on attacker-controlled strings without bounds.");
+    patterns.push("ALWAYS apply length limits to user-controlled input before validation/parsing.");
+  } else if (name.includes("command injection")) {
+    patterns.push("NEVER evaluate templates or commands built from untrusted input.");
+    patterns.push("ALWAYS treat template engines and string interpolation as a security boundary.");
+  }
+
+  return patterns;
+}
+
+/** Maps an OWASP ref back to all CWEs that resolve to it. */
+function owaspRefToCwes(ref: string): string[] {
+  return Object.entries(CWE_TO_OWASP_WEB)
+    .filter(([, v]) => v === ref)
+    .map(([k]) => k);
+}
+
+/**
+ * Three-tier pattern lookup per threat:
+ *   Tier 0: manual mustLines from seed-master.json  (highest priority)
+ *   Tier 1: Claude-generated patternLines from threat.aiAmplification
+ *   Tier 2: static CWE→ALWAYS/NEVER map
+ *   Tier 3: legacy keyword heuristics (fallback)
+ */
+function getPatternsForThreat(
+  t: MasterThreat,
+  dbAmplification?: string | null
+): string[] {
+  if (t.mustLines && t.mustLines.length > 0) return t.mustLines;
+
+  if (dbAmplification) {
+    try {
+      const parsed = JSON.parse(dbAmplification) as { patternLines?: string[] };
+      if (parsed.patternLines && parsed.patternLines.length > 0) return parsed.patternLines;
+    } catch { /* fall through */ }
+  }
+
+  const allCwes = (t.owaspRefs ?? []).flatMap(owaspRefToCwes);
+  const cweLines = getCwePatternLines(allCwes);
+  if (cweLines.length > 0) return cweLines;
+
+  return guessSafePatternsForThreat(t);
+}
+
+/**
+ * Three-tier context lookup per threat:
+ *   Tier 0: manual ruleContext from seed-master.json
+ *   Tier 1: Claude-generated ruleContext from threat.aiAmplification
+ *   Tier 2: compactDescription from description field
+ */
+function getContextForThreat(
+  t: MasterThreat,
+  dbAmplification?: string | null
+): string {
+  if (t.ruleContext?.trim()) return t.ruleContext.trim();
+
+  if (dbAmplification) {
+    try {
+      const parsed = JSON.parse(dbAmplification) as { ruleContext?: string };
+      if (parsed.ruleContext?.trim()) return parsed.ruleContext.trim();
+    } catch { /* fall through */ }
+  }
+
+  return compactDescription(t.description ?? "") || "See vendor advisory for impact.";
+}
+
+function buildStackPatternsRuleBody(
+  stackSlug: string,
+  rows: MasterThreat[],
+  ampMap: Map<string, string>
+): string {
+  const stackName = STACK_REGISTRY.find(s => s.slug === stackSlug)?.name ?? stackSlug;
   const lines: string[] = [
-    `# ${STACK_DISPLAY[stackSlug]?.name ?? stackSlug} security guardrails`,
+    `# ${stackName} security patterns`,
     "",
-    "MVP guardrails derived from verified CVE rows linked to this stack in the catalog.",
+    "Safe, always-on code patterns that reduce security risk without changing your dependency graph.",
+    "",
+    "These rules use ONLY pattern-level verbs (ALWAYS/NEVER). They MUST NOT prescribe dependency upgrades.",
     "",
   ];
-  const sorted = [...rows].sort((a, b) => {
-    const sev = (s: string | null | undefined) =>
-      s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
-    return sev(a.severity) - sev(b.severity);
-  });
+
+  const sorted = sortThreatRows(rows);
   for (const t of sorted.slice(0, 24)) {
     const id = (t.cveId ?? t.publicId).trim();
-    let context =
-      (t.ruleContext ?? "").trim() || compactDescription(t.description ?? "") || "See vendor advisory for impact.";
+    const patterns = getPatternsForThreat(t, ampMap.get(t.publicId));
+    lines.push(`### ${id} — safe patterns`);
+    lines.push("");
+    if (patterns.length === 0) {
+      lines.push("- ALWAYS follow vendor guidance when implementing features related to this advisory.");
+    } else {
+      for (const p of patterns) lines.push(`- ${p}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+function buildStackDepsRuleBody(
+  stackSlug: string,
+  rows: MasterThreat[],
+  ampMap: Map<string, string>
+): string {
+  const stackName = STACK_REGISTRY.find(s => s.slug === stackSlug)?.name ?? stackSlug;
+  const lines: string[] = [
+    `# ${stackName} security dependency alerts`,
+    "",
+    "Dependency-related security advisories. These instructions MUST NOT automatically edit dependency files.",
+    "",
+    "Verb contract: WARN + CONFIRM + CHECK. No ALWAYS pinning or silent upgrades.",
+    "",
+  ];
+
+  const sorted = sortThreatRows(rows);
+  for (const t of sorted.slice(0, 24)) {
+    const id = (t.cveId ?? t.publicId).trim();
+    const sourceUrl = (t.sourceUrl ?? "").trim();
+    const pkg = (t.affectedProducts?.[0]?.name ?? "").trim();
+    const patched = (t.alwaysPin ?? "").trim() || pinLineFromProducts(t);
+    let context = getContextForThreat(t, ampMap.get(t.publicId));
     if (t.isActivelyExploited && !/actively exploited/i.test(context)) {
       context = `${context} Actively exploited in the wild.`.trim();
     }
@@ -151,29 +283,48 @@ function buildStackRuleBody(stackSlug: string, rows: MasterThreat[]): string {
       );
     }
 
-    const hint = (t.ruleHint ?? "").trim();
-    const mustLines = (t.mustLines ?? []).map((s) => s.trim()).filter(Boolean);
-    const pinOverride = (t.alwaysPin ?? "").trim();
-    const pin = pinOverride || pinLineFromProducts(t);
-
-    lines.push(`### Prevents ${id}: ${t.name}`);
+    lines.push(`### ${id} — ${t.name}`);
     lines.push("");
     lines.push(`Context: ${context}`);
+    if (sourceUrl) lines.push(`Source: ${sourceUrl}`);
     lines.push("");
-    if (mustLines.length > 0) {
-      for (const m of mustLines) lines.push(`MUST: ${m}`);
-    } else if (hint) {
-      lines.push(`MUST apply vendor guidance: ${hint}`);
+
+    if (pkg) {
+      const treeCmd = ecosystemDependencyTreeCommand(stackSlug, pkg);
+      lines.push(`WHEN you detect \`${pkg}\` in this project at a vulnerable version:`);
+      lines.push("");
+      lines.push(
+        `WARN the developer: ⚠️ ${id}: ${pkg} may be vulnerable. ${context} Patched versions: ${patched || "(see advisory)"}`
+      );
+      lines.push("");
+      lines.push("CHECK for dependency conflicts before proposing any upgrade:");
+      lines.push(`Run: \`${treeCmd}\``);
+      lines.push("");
+      lines.push("DO NOT modify dependency files without developer confirmation.");
+      lines.push("");
+      lines.push("WHEN the developer confirms they want to upgrade:");
+      lines.push("1. Show the dependency tree output and identify conflicts");
+      lines.push("2. Propose a migration plan (including breaking changes) before editing files");
+      lines.push("3. Only then apply the upgrade");
+    } else {
+      lines.push("WHEN you detect a vulnerable dependency related to this advisory:");
+      lines.push("");
+      lines.push(`WARN the developer: ⚠️ ${id}: A dependency in this project may be vulnerable. ${context}`);
+      lines.push("DO NOT modify dependency files without developer confirmation.");
     }
-    if (pin) lines.push(`ALWAYS use patched version: ${pin}`);
-    lines.push("NEVER deploy a release line known to include this CVE without mitigation.");
+
+    lines.push("");
+    lines.push("---");
     lines.push("");
   }
+
   return lines.join("\n");
 }
 
 function imperativeLineCount(body: string): number {
-  return body.split("\n").filter((line) => /^\s*(NEVER|ALWAYS|MUST:|MUST\b)/i.test(line.trim())).length;
+  return body
+    .split("\n")
+    .filter((line) => /^\s*-?\s*(NEVER|ALWAYS|MUST:|MUST\b|WARN\b|CONFIRM\b|CHECK\b|DO NOT\b)/i.test(line.trim())).length;
 }
 
 async function clearCatalog() {
@@ -189,71 +340,38 @@ async function clearCatalog() {
   await db.delete(threat);
   await db.delete(policyTemplateStack);
   await db.delete(policyTemplate);
-  await db.delete(stackFrameworkFeature);
-  await db.delete(stackCoverageArea);
   await db.delete(stack).where(inArray(stack.slug, [...ALL_CATALOG_STACK_SLUGS]));
 }
 
 async function upsertCatalogStacks() {
-  let sort = 1;
-  for (const slug of LAUNCH_STACK_SLUGS) {
-    const meta = STACK_DISPLAY[slug];
-    if (!meta) throw new Error(`Missing STACK_DISPLAY for ${slug}`);
-    const sortOrder = sort++;
-    await db
-      .insert(stack)
-      .values({
-        slug,
-        name: meta.name,
-        sortOrder,
-        catalogStatus: "launch",
-        ecosystem: meta.ecosystem,
-        nvdKeywords: meta.nvdKeywords ?? [],
-        osvEcosystem: meta.osv,
-        securityGrade: null,
-        gradeRationale: null,
-      })
-      .onConflictDoUpdate({
-        target: stack.slug,
-        set: {
-          name: meta.name,
-          sortOrder,
-          catalogStatus: "launch",
-          ecosystem: meta.ecosystem,
-          nvdKeywords: meta.nvdKeywords ?? [],
-          osvEcosystem: meta.osv,
-        },
-      });
-  }
-  for (const slug of COMING_SOON_STACK_SLUGS) {
-    const meta = STACK_DISPLAY[slug];
-    if (!meta) throw new Error(`Missing STACK_DISPLAY for ${slug}`);
-    const sortOrder = sort++;
-    await db
-      .insert(stack)
-      .values({
-        slug,
-        name: meta.name,
-        sortOrder,
-        catalogStatus: "coming_soon",
-        ecosystem: meta.ecosystem,
-        nvdKeywords: meta.nvdKeywords ?? [],
-        osvEcosystem: meta.osv,
-        securityGrade: null,
-        gradeRationale: null,
-      })
-      .onConflictDoUpdate({
-        target: stack.slug,
-        set: {
-          name: meta.name,
-          sortOrder,
-          catalogStatus: "coming_soon",
-          ecosystem: meta.ecosystem,
-          nvdKeywords: meta.nvdKeywords ?? [],
-          osvEcosystem: meta.osv,
-        },
-      });
-  }
+  await Promise.all(
+    STACK_REGISTRY.map(cfg =>
+      db
+        .insert(stack)
+        .values({
+          slug:          cfg.slug,
+          name:          cfg.name,
+          sortOrder:     cfg.sortOrder,
+          catalogStatus: cfg.catalogStatus,
+          ecosystem:     cfg.ecosystem,
+          nvdKeywords:   cfg.nvdKeywords,
+          osvEcosystem:  cfg.osvEcosystem,
+          securityGrade: null,
+          gradeRationale: null,
+        })
+        .onConflictDoUpdate({
+          target: stack.slug,
+          set: {
+            name:          cfg.name,
+            sortOrder:     cfg.sortOrder,
+            catalogStatus: cfg.catalogStatus,
+            ecosystem:     cfg.ecosystem,
+            nvdKeywords:   cfg.nvdKeywords,
+            osvEcosystem:  cfg.osvEcosystem,
+          },
+        })
+    )
+  );
 }
 
 async function insertThreatsAndStacks(
@@ -330,7 +448,8 @@ async function insertThreatsAndStacks(
 async function reconcileRuleForStack(
   ruleId: string,
   stackId: number,
-  ideIdBySlug: Map<string, number | undefined>
+  ideIdBySlug: Map<string, number | undefined>,
+  layerIdBySlug: Map<string, string>
 ) {
   await db.delete(ruleStack).where(eq(ruleStack.ruleId, ruleId));
   await db.insert(ruleStack).values({ ruleId, stackId });
@@ -359,7 +478,10 @@ async function reconcileRuleForStack(
   }
 
   await db.delete(ruleLayerMap).where(eq(ruleLayerMap.ruleId, ruleId));
-  await db.insert(ruleLayerMap).values({ ruleId, layer: "security" }).onConflictDoNothing();
+  const authLayerId = layerIdBySlug.get("auth_session");
+  if (authLayerId) {
+    await db.insert(ruleLayerMap).values({ ruleId, layerId: authLayerId }).onConflictDoNothing();
+  }
 }
 
 function todayDateStr(): string {
@@ -390,8 +512,15 @@ async function seedUpsert(master: MasterFile, threatStacks: ThreatStackFile, shi
   const ideRows = await db.select().from(ide);
   const ideIdBySlug = new Map(ideRows.map((i) => [i.slug, i.id]));
 
-  const nextjsMdc = readFileSync(join(CATALOG_DIR, "nextjs-cursor-security.mdc"), "utf8");
-  const nextjsBody = stripMdcFrontmatter(nextjsMdc);
+  const layerRows = await db.select({ id: layer.id, slug: layer.slug }).from(layer);
+  const layerIdBySlug = new Map(layerRows.map((l) => [l.slug, l.id]));
+
+  // Load Claude-generated amplification for all threats at once
+  const ampRows = await db
+    .select({ publicId: threat.publicId, aiAmplification: threat.aiAmplification })
+    .from(threat)
+    .where(isNotNull(threat.aiAmplification));
+  const ampMap = new Map(ampRows.map(r => [r.publicId, r.aiAmplification!]));
 
   const threatsByStack = new Map<string, MasterThreat[]>();
   for (const t of shipped) {
@@ -405,45 +534,73 @@ async function seedUpsert(master: MasterFile, threatStacks: ThreatStackFile, shi
 
   for (const stackSlug of LAUNCH_STACK_SLUGS) {
     const stackId = stackIdBySlug.get(stackSlug)!;
-    const slug = `${stackSlug}-security-guardrails-v1`;
-    const body =
-      stackSlug === "nextjs" ? nextjsBody : buildStackRuleBody(stackSlug, threatsByStack.get(stackSlug) ?? []);
-    const stackMeta = STACK_DISPLAY[stackSlug]!;
+    const stackThreats = threatsByStack.get(stackSlug) ?? [];
+    const stackMeta = STACK_REGISTRY.find(s => s.slug === stackSlug)!;
+    const stackMetaName = stackMeta?.name ?? stackSlug;
 
-    const [upserted] = await db
-      .insert(rule)
-      .values({
-        slug,
-        name: `${stackMeta.name} security guardrails`,
-        description: `Certified guardrails mapped to verified CVEs for ${stackMeta.name}.`,
-        version: "1.0.0",
-        dateAdded: "2026-05-06",
-        lastUpdated: todayDateStr(),
-        author: "aigently",
-        certified: true,
-        lineCount: body.split("\n").length,
-        bodyMdx: body,
-      })
-      .onConflictDoUpdate({
-        target: rule.slug,
-        set: {
-          name: `${stackMeta.name} security guardrails`,
-          description: `Certified guardrails mapped to verified CVEs for ${stackMeta.name}.`,
+    for (const contentType of ["patterns", "deps"] as const) {
+      const slug = stackRuleSlug(stackSlug, contentType);
+      const body =
+        contentType === "patterns"
+          ? buildStackPatternsRuleBody(stackSlug, stackThreats, ampMap)
+          : buildStackDepsRuleBody(stackSlug, stackThreats, ampMap);
+
+      const name =
+        contentType === "patterns"
+          ? `${stackMetaName} security patterns`
+          : `${stackMetaName} security dependency alerts`;
+      const description =
+        contentType === "patterns"
+          ? `Always-on secure coding patterns for ${stackMetaName} (safe; no dependency edits).`
+          : `Dependency vulnerability alerts for ${stackMetaName} (advisory; requires confirmation).`;
+
+      const lineCount = body.split("\n").length;
+      const strengthScore = computeStrengthScore({ certified: true, bodyMdx: body, lineCount });
+      const [upserted] = await db
+        .insert(rule)
+        .values({
+          slug,
+          name,
+          description,
           version: "1.0.0",
+          dateAdded: "2026-05-06",
           lastUpdated: todayDateStr(),
-          lineCount: body.split("\n").length,
+          author: "aigently",
+          certified: true,
+          lineCount,
+          strengthScore,
           bodyMdx: body,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: rule.id });
+        })
+        .onConflictDoUpdate({
+          target: rule.slug,
+          set: {
+            name,
+            description,
+            version: "1.0.0",
+            lastUpdated: todayDateStr(),
+            lineCount,
+            strengthScore,
+            bodyMdx: body,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ id: rule.id });
 
-    const ruleId = upserted!.id;
-    await reconcileRuleForStack(ruleId, stackId, ideIdBySlug);
+      const ruleId = upserted!.id;
+      await reconcileRuleForStack(ruleId, stackId, ideIdBySlug, layerIdBySlug);
+    }
+  }
+
+  // Remove legacy guardrails slugs now superseded by patterns+deps split.
+  for (const stackSlug of LAUNCH_STACK_SLUGS) {
+    const legacySlug = `${stackSlug}-security-guardrails-v1`;
+    await db.delete(rule).where(eq(rule.slug, legacySlug));
   }
 
   console.log(
-    `Seed upsert complete: ${shipped.length} shippable threats, rules upserted for ${LAUNCH_STACK_SLUGS.length} launch stacks (catalog from ${master.generatedAt ?? "seed-master.json"}).`
+    `Seed upsert complete: ${shipped.length} shippable threats, rules upserted for ${
+      LAUNCH_STACK_SLUGS.length * 2
+    } rules across ${LAUNCH_STACK_SLUGS.length} launch stacks (catalog from ${master.generatedAt ?? "seed-master.json"}).`
   );
 }
 
@@ -452,33 +609,15 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
 
   await clearCatalog();
 
-  let sort = 1;
-  for (const slug of LAUNCH_STACK_SLUGS) {
-    const meta = STACK_DISPLAY[slug];
-    if (!meta) throw new Error(`Missing STACK_DISPLAY for ${slug}`);
+  for (const cfg of STACK_REGISTRY) {
     await db.insert(stack).values({
-      slug,
-      name: meta.name,
-      sortOrder: sort++,
-      catalogStatus: "launch",
-      ecosystem: meta.ecosystem,
-      nvdKeywords: meta.nvdKeywords ?? [],
-      osvEcosystem: meta.osv,
-      securityGrade: null,
-      gradeRationale: null,
-    });
-  }
-  for (const slug of COMING_SOON_STACK_SLUGS) {
-    const meta = STACK_DISPLAY[slug];
-    if (!meta) throw new Error(`Missing STACK_DISPLAY for ${slug}`);
-    await db.insert(stack).values({
-      slug,
-      name: meta.name,
-      sortOrder: sort++,
-      catalogStatus: "coming_soon",
-      ecosystem: meta.ecosystem,
-      nvdKeywords: meta.nvdKeywords ?? [],
-      osvEcosystem: meta.osv,
+      slug:          cfg.slug,
+      name:          cfg.name,
+      sortOrder:     cfg.sortOrder,
+      catalogStatus: cfg.catalogStatus,
+      ecosystem:     cfg.ecosystem,
+      nvdKeywords:   cfg.nvdKeywords,
+      osvEcosystem:  cfg.osvEcosystem,
       securityGrade: null,
       gradeRationale: null,
     });
@@ -503,8 +642,15 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
   const ideRows = await db.select().from(ide);
   const ideIdBySlug = new Map(ideRows.map((i) => [i.slug, i.id]));
 
-  const nextjsMdc = readFileSync(join(CATALOG_DIR, "nextjs-cursor-security.mdc"), "utf8");
-  const nextjsBody = stripMdcFrontmatter(nextjsMdc);
+  const layerRows = await db.select({ id: layer.id, slug: layer.slug }).from(layer);
+  const layerIdBySlug = new Map(layerRows.map((l) => [l.slug, l.id]));
+
+  // Load Claude-generated amplification for all threats at once
+  const ampRows = await db
+    .select({ publicId: threat.publicId, aiAmplification: threat.aiAmplification })
+    .from(threat)
+    .where(isNotNull(threat.aiAmplification));
+  const ampMap = new Map(ampRows.map(r => [r.publicId, r.aiAmplification!]));
 
   const threatsByStack = new Map<string, MasterThreat[]>();
   for (const t of shipped) {
@@ -518,48 +664,72 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
 
   for (const stackSlug of LAUNCH_STACK_SLUGS) {
     const stackId = stackIdBySlug.get(stackSlug)!;
-    const slug = `${stackSlug}-security-guardrails-v1`;
-    const body =
-      stackSlug === "nextjs" ? nextjsBody : buildStackRuleBody(stackSlug, threatsByStack.get(stackSlug) ?? []);
-    const insertedRule = await db
-      .insert(rule)
-      .values({
-        slug,
-        name: `${STACK_DISPLAY[stackSlug]!.name} security guardrails`,
-        description: `Certified guardrails mapped to verified CVEs for ${STACK_DISPLAY[stackSlug]!.name}.`,
-        version: "1.0.0",
-        dateAdded: "2026-05-06",
-        lastUpdated: todayDateStr(),
-        author: "aigently",
-        certified: true,
-        lineCount: body.split("\n").length,
-        bodyMdx: body,
-      })
-      .returning({ id: rule.id });
+    const stackThreats = threatsByStack.get(stackSlug) ?? [];
+    const stackMetaName = STACK_REGISTRY.find(s => s.slug === stackSlug)?.name ?? stackSlug;
 
-    const ruleId = insertedRule[0]!.id;
-    await db.insert(ruleStack).values({ ruleId, stackId }).onConflictDoNothing();
-    for (const ideSlug of ["cursor", "claude-code", "windsurf", "copilot", "cline"] as const) {
-      const ideId = ideIdBySlug.get(ideSlug);
-      if (ideId !== undefined) {
-        await db.insert(ruleIde).values({ ruleId, ideId }).onConflictDoNothing();
+    for (const contentType of ["patterns", "deps"] as const) {
+      const slug = stackRuleSlug(stackSlug, contentType);
+      const body =
+        contentType === "patterns"
+          ? buildStackPatternsRuleBody(stackSlug, stackThreats, ampMap)
+          : buildStackDepsRuleBody(stackSlug, stackThreats, ampMap);
+      const name =
+        contentType === "patterns"
+          ? `${stackMetaName} security patterns`
+          : `${stackMetaName} security dependency alerts`;
+      const description =
+        contentType === "patterns"
+          ? `Always-on secure coding patterns for ${stackMetaName} (safe; no dependency edits).`
+          : `Dependency vulnerability alerts for ${stackMetaName} (advisory; requires confirmation).`;
+
+      const lineCountNew = body.split("\n").length;
+      const strengthScoreNew = computeStrengthScore({ certified: true, bodyMdx: body, lineCount: lineCountNew });
+      const insertedRule = await db
+        .insert(rule)
+        .values({
+          slug,
+          name,
+          description,
+          version: "1.0.0",
+          dateAdded: "2026-05-06",
+          lastUpdated: todayDateStr(),
+          author: "aigently",
+          certified: true,
+          lineCount: lineCountNew,
+          strengthScore: strengthScoreNew,
+          bodyMdx: body,
+        })
+        .returning({ id: rule.id });
+
+      const ruleId = insertedRule[0]!.id;
+      await db.insert(ruleStack).values({ ruleId, stackId }).onConflictDoNothing();
+      for (const ideSlug of ["cursor", "claude-code", "windsurf", "copilot", "cline"] as const) {
+        const ideId = ideIdBySlug.get(ideSlug);
+        if (ideId !== undefined) {
+          await db.insert(ruleIde).values({ ruleId, ideId }).onConflictDoNothing();
+        }
       }
-    }
-    await db.insert(ruleLayerMap).values({ ruleId, layer: "security" }).onConflictDoNothing();
+      const authLayerId = layerIdBySlug.get("auth_session");
+      if (authLayerId) {
+        await db.insert(ruleLayerMap).values({ ruleId, layerId: authLayerId }).onConflictDoNothing();
+      }
 
-    const linkThreats = await db
-      .select({ publicId: threat.publicId })
-      .from(threatStack)
-      .innerJoin(threat, eq(threatStack.threatId, threat.publicId))
-      .where(eq(threatStack.stackId, stackId));
+      const linkThreats = await db
+        .select({ publicId: threat.publicId })
+        .from(threatStack)
+        .innerJoin(threat, eq(threatStack.threatId, threat.publicId))
+        .where(eq(threatStack.stackId, stackId));
 
-    for (const { publicId } of linkThreats) {
-      await db.insert(ruleThreatMap).values({ ruleId, threatId: publicId }).onConflictDoNothing();
+      for (const { publicId } of linkThreats) {
+        await db.insert(ruleThreatMap).values({ ruleId, threatId: publicId }).onConflictDoNothing();
+      }
     }
   }
 
   console.log(
-    `Seed complete: ${shipped.length} shippable threats, stacks launch+coming_soon, ${LAUNCH_STACK_SLUGS.length} rules (catalog from ${master.generatedAt ?? "seed-master.json"}).`
+    `Seed complete: ${shipped.length} shippable threats, stacks launch+coming_soon, ${
+      LAUNCH_STACK_SLUGS.length * 2
+    } rules (catalog from ${master.generatedAt ?? "seed-master.json"}).`
   );
 }
 
@@ -605,6 +775,7 @@ async function main() {
   }
 
   await runGates();
+  await seedLayerRoutingMappings();
 
   if (process.env.SEED_URL_HEAD_CHECK === "1") {
     const urlRows = await db.select({ url: threat.sourceUrl }).from(threat);
@@ -620,6 +791,65 @@ async function main() {
       }
     }
   }
+}
+
+async function seedLayerRoutingMappings() {
+  // Fetch all layer slugs → ids once
+  const layers = await db.select({ id: layer.id, slug: layer.slug }).from(layer);
+  const layerBySlug = Object.fromEntries(layers.map((l) => [l.slug, l.id]));
+
+  const sourceDefaults: Array<{ source: string; layerSlug: string; relevance: "primary" | "secondary" }> = [
+    { source: "nvd",                layerSlug: "input_validation",  relevance: "primary" },
+    { source: "nvd",                layerSlug: "dependency_supply", relevance: "secondary" },
+    { source: "osv",                layerSlug: "dependency_supply", relevance: "primary" },
+    { source: "ghsa",               layerSlug: "dependency_supply", relevance: "primary" },
+    { source: "cisa_kev",           layerSlug: "input_validation",  relevance: "primary" },
+    { source: "aigently_internal",  layerSlug: "auth_session",      relevance: "primary" },
+    { source: "mitre_atlas",        layerSlug: "ai_safety",         relevance: "primary" },
+  ];
+
+  for (const row of sourceDefaults) {
+    const lid = layerBySlug[row.layerSlug];
+    if (!lid) { console.warn(`seedLayerRoutingMappings: layer slug not found: ${row.layerSlug}`); continue; }
+    await db
+      .insert(sourceLayerMapping)
+      .values({ source: row.source as "nvd" | "osv" | "ghsa" | "cisa_kev" | "aigently" | "mitre_atlas" | "aigently_internal", layerId: lid, relevance: row.relevance, isActive: true })
+      .onConflictDoNothing();
+  }
+  console.log(`  ✓ source_layer_mapping: ${sourceDefaults.length} default rows ensured`);
+
+  const owaspDefaults: Array<{ owaspRef: string; layerSlug: string }> = [
+    { owaspRef: "A01",   layerSlug: "authz_access" },
+    { owaspRef: "A02",   layerSlug: "secrets_credentials" },
+    { owaspRef: "A03",   layerSlug: "input_validation" },
+    { owaspRef: "A04",   layerSlug: "code_quality" },
+    { owaspRef: "A05",   layerSlug: "infrastructure" },
+    { owaspRef: "A06",   layerSlug: "dependency_supply" },
+    { owaspRef: "A07",   layerSlug: "auth_session" },
+    { owaspRef: "A08",   layerSlug: "dependency_supply" },
+    { owaspRef: "A09",   layerSlug: "observability" },
+    { owaspRef: "A10",   layerSlug: "api_security" },
+    { owaspRef: "LLM01", layerSlug: "ai_safety" },
+    { owaspRef: "LLM02", layerSlug: "ai_safety" },
+    { owaspRef: "LLM03", layerSlug: "ai_safety" },
+    { owaspRef: "LLM04", layerSlug: "ai_safety" },
+    { owaspRef: "LLM05", layerSlug: "ai_safety" },
+    { owaspRef: "LLM06", layerSlug: "ai_safety" },
+    { owaspRef: "LLM07", layerSlug: "ai_safety" },
+    { owaspRef: "LLM08", layerSlug: "ai_safety" },
+    { owaspRef: "LLM09", layerSlug: "ai_safety" },
+    { owaspRef: "LLM10", layerSlug: "ai_safety" },
+  ];
+
+  for (const row of owaspDefaults) {
+    const lid = layerBySlug[row.layerSlug];
+    if (!lid) { console.warn(`seedLayerRoutingMappings: layer slug not found: ${row.layerSlug}`); continue; }
+    await db
+      .insert(owaspLayerMapping)
+      .values({ owaspRef: row.owaspRef, layerId: lid, relevance: "primary", isActive: true })
+      .onConflictDoNothing();
+  }
+  console.log(`  ✓ owasp_layer_mapping: ${owaspDefaults.length} default rows ensured`);
 }
 
 function isConnRefused(err: unknown): boolean {

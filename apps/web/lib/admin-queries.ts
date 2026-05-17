@@ -149,7 +149,6 @@ export async function listRules(params: { page: number; perPage: number; search?
         ruleType: rule.ruleType,
         strengthScore: rule.strengthScore,
         certified: rule.certified,
-        complexity: rule.complexity,
         lineCount: rule.lineCount,
         author: rule.author,
         updatedAt: rule.updatedAt,
@@ -565,7 +564,7 @@ export async function getPipelinePhaseStatus() {
 
   return {
     lastSyncRun: latestRunResult[0] ?? null,
-    sourceSummary: (latestRunResult[0]?.sourceSummary ?? {}) as Record<string, unknown>,
+    phaseSummary: (latestRunResult[0]?.phaseSummary ?? {}) as Record<string, unknown>,
     unamplifiedThreats: unamplifiedResult[0]?.count ?? 0,
     unassignedThreats: unassignedResult[0]?.count ?? 0,
     staleGuardrails: staleGuardrailsResult[0]?.count ?? 0,

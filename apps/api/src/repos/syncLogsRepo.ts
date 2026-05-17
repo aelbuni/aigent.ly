@@ -14,7 +14,7 @@ export async function listSyncLogs(limit = 25) {
       coveragePercent: syncLog.coveragePercent,
       status: syncLog.status,
       errorMessage: syncLog.errorMessage,
-      sourceSummary: syncLog.sourceSummary,
+      phaseSummary: syncLog.phaseSummary,
     })
     .from(syncLog)
     .orderBy(desc(syncLog.id))

@@ -3,8 +3,6 @@ import { asc, eq, sql } from "drizzle-orm";
 import {
   ruleStack,
   stack,
-  stackCoverageArea,
-  stackFrameworkFeature,
   threat,
   threatStack,
 } from "@aigently/db/schema";
@@ -37,26 +35,6 @@ export async function getStackOverview(slug: string) {
     .from(ruleStack)
     .where(eq(ruleStack.stackId, s.id));
 
-  const coverage = await db
-    .select({
-      areaName: stackCoverageArea.areaName,
-      coveragePercent: stackCoverageArea.coveragePercent,
-      notes: stackCoverageArea.notes,
-    })
-    .from(stackCoverageArea)
-    .where(eq(stackCoverageArea.stackId, s.id))
-    .orderBy(asc(stackCoverageArea.areaName));
-
-  const framework = await db
-    .select({
-      featureName: stackFrameworkFeature.featureName,
-      status: stackFrameworkFeature.status,
-      notes: stackFrameworkFeature.notes,
-    })
-    .from(stackFrameworkFeature)
-    .where(eq(stackFrameworkFeature.stackId, s.id))
-    .orderBy(asc(stackFrameworkFeature.featureName));
-
   const matrix = await db
     .select({
       publicId: threat.publicId,
@@ -72,8 +50,8 @@ export async function getStackOverview(slug: string) {
 
   return {
     stack: { ...s, ruleCount: countRow?.c ?? 0 },
-    coverageAreas: coverage,
-    frameworkFeatures: framework,
+    coverageAreas: [],
+    frameworkFeatures: [],
     threatMatrix: matrix,
   };
 }

@@ -22,7 +22,6 @@ export async function upsertThreat(t: NormalisedThreat): Promise<void> {
     patchedVersion:      t.patchedVersion,
     isActivelyExploited: t.isActivelyExploited,
     cisaActionDue:       t.cisaActionDue,
-    details:             t.details,
     updatedAt:           now,
     // aiAmplification intentionally absent — editorial-only field
   };
@@ -100,7 +99,7 @@ export async function refreshMitigationFlags(
 export async function openSyncLog(): Promise<number> {
   const [row] = await db
     .insert(syncLog)
-    .values({ status: "running", sourceSummary: {} })
+    .values({ status: "running", phaseSummary: {} })
     .returning({ id: syncLog.id });
   return row.id;
 }
@@ -128,7 +127,7 @@ export async function closeSyncLog(
     .update(syncLog)
     .set({
       finishedAt:      new Date(),
-      sourceSummary:   summary,
+      phaseSummary:   summary,
       coveragePercent: pct,
       status:          error ? "failed" : "success",
       errorMessage:    error ?? null,

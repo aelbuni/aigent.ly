@@ -3,7 +3,9 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   db,
+  article,
   ide,
+  layer,
   policyTemplate,
   policyTemplateStack,
   rule,
@@ -11,8 +13,6 @@ import {
   ruleStack,
   ruleThreatMap,
   stack,
-  stackCoverageArea,
-  stackFrameworkFeature,
   syncLog,
   threat,
   threatStack,
@@ -24,8 +24,49 @@ type StackOverviewResponse = components["schemas"]["StackOverviewResponse"];
 type PolicyTemplate = components["schemas"]["PolicyTemplate"];
 type Ide = components["schemas"]["Ide"];
 type Rule = components["schemas"]["Rule"];
-type RuleDetail = components["schemas"]["RuleDetail"];
+type RuleDetail = components["schemas"]["RuleDetail"] & { summaryMdx?: string | null };
 type Threat = components["schemas"]["Threat"];
+
+// ---------------------------------------------------------------------------
+// Shared subquery: sum weekly copy-events for a rule row.
+// Drizzle's sql template is evaluated once; the column reference `rule.id`
+// is resolved per-row by the database engine, so this const is safe to reuse
+// across multiple .select() calls.
+// ---------------------------------------------------------------------------
+const weeklyUsesSubquery = sql<number>`(
+  SELECT COALESCE(SUM(wu.total_copies), 0)::int
+  FROM rule_weekly_usage AS wu
+  WHERE wu.rule_id = ${rule.id}
+)`.as("weeklyUses");
+
+// ---------------------------------------------------------------------------
+// Shared row mapper for the common Rule columns returned by directory /
+// preview queries.  Callers that also project `strengthScore` should spread
+// this result and add the extra field themselves.
+// ---------------------------------------------------------------------------
+type RuleRowBase = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  version: string;
+  certified: boolean;
+  lineCount: number | null;
+  weeklyUses: number;
+};
+
+function mapRuleRow(r: RuleRowBase): Rule {
+  return {
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    version: r.version,
+    certified: r.certified,
+    lineCount: r.lineCount ?? null,
+    weeklyUses: r.weeklyUses ?? 0,
+  };
+}
 
 function withLogoCdn(logoPath: string | null): string | null {
   const base = process.env.STACK_LOGO_CDN_BASE?.trim().replace(/\/$/, "");
@@ -119,26 +160,6 @@ export async function getStackOverviewFromDb(slug: string): Promise<StackOvervie
     .from(ruleStack)
     .where(eq(ruleStack.stackId, s.id));
 
-  const coverage = await db
-    .select({
-      areaName: stackCoverageArea.areaName,
-      coveragePercent: stackCoverageArea.coveragePercent,
-      notes: stackCoverageArea.notes,
-    })
-    .from(stackCoverageArea)
-    .where(eq(stackCoverageArea.stackId, s.id))
-    .orderBy(asc(stackCoverageArea.areaName));
-
-  const framework = await db
-    .select({
-      featureName: stackFrameworkFeature.featureName,
-      status: stackFrameworkFeature.status,
-      notes: stackFrameworkFeature.notes,
-    })
-    .from(stackFrameworkFeature)
-    .where(eq(stackFrameworkFeature.stackId, s.id))
-    .orderBy(asc(stackFrameworkFeature.featureName));
-
   const matrix = await db
     .select({
       publicId: threat.publicId,
@@ -164,8 +185,8 @@ export async function getStackOverviewFromDb(slug: string): Promise<StackOvervie
     ecosystem: s.ecosystem ?? null,
     nvdKeywords: s.nvdKeywords ?? [],
     osvEcosystem: s.osvEcosystem ?? null,
-    coverageAreas: coverage,
-    frameworkFeatures: framework,
+    coverageAreas: [],
+    frameworkFeatures: [],
     threatMatrix: matrix,
   };
 }
@@ -178,7 +199,7 @@ export async function listPolicyTemplatesFromDb(stackSlug: string): Promise<Poli
       slug: policyTemplate.slug,
       name: policyTemplate.name,
       description: policyTemplate.description,
-      layer: policyTemplate.layer,
+      layerId: policyTemplate.layerId,
       sortOrder: policyTemplate.sortOrder,
     })
     .from(policyTemplate)
@@ -192,9 +213,9 @@ export async function listPolicyTemplatesFromDb(stackSlug: string): Promise<Poli
     slug: r.slug,
     name: r.name,
     description: r.description ?? null,
-    layer: r.layer,
+    layerId: r.layerId,
     sortOrder: r.sortOrder,
-  }));
+  })) as unknown as PolicyTemplate[];
 }
 
 /** Same rows/shape as `GET /v1/ides`. */
@@ -220,11 +241,10 @@ export async function listIdesFromDb(): Promise<Ide[]> {
 /** Rules for the directory UI — mirrors `GET /v1/rules` pagination shape (no cursor). */
 export async function listRulesDirectoryFromDb(
   stackSlugs: string[]
-): Promise<{ rules: Rule[]; stacksByRuleId: Map<string, string[]> }> {
+): Promise<{ rules: (Rule & { strengthScore: number })[]; stacksByRuleId: Map<string, string[]> }> {
   const stacksByRuleId = new Map<string, string[]>();
 
   if (stackSlugs.length === 0) {
-    // One row per threat mapping — dedupe by rule id so the grid is not N copies of the same rule.
     const rows = await db
       .select({
         id: rule.id,
@@ -234,29 +254,19 @@ export async function listRulesDirectoryFromDb(
         version: rule.version,
         certified: rule.certified,
         lineCount: rule.lineCount,
-        weeklyUses: sql<number>`(
-          SELECT COALESCE(SUM(wu.total_copies), 0)::int
-          FROM rule_weekly_usage AS wu
-          WHERE wu.rule_id = ${rule.id}
-        )`.as("weeklyUses"),
+        strengthScore: rule.strengthScore,
+        weeklyUses: weeklyUsesSubquery,
       })
       .from(rule)
-      .innerJoin(ruleThreatMap, eq(ruleThreatMap.ruleId, rule.id))
       .orderBy(asc(rule.id))
-      .limit(800);
+      .limit(400);
 
-    const byId = new Map<string, Rule>();
+    const byId = new Map<string, Rule & { strengthScore: number }>();
     for (const r of rows) {
       if (byId.has(r.id)) continue;
       byId.set(r.id, {
-        id: r.id,
-        slug: r.slug,
-        name: r.name,
-        description: r.description,
-        version: r.version,
-        certified: r.certified,
-        lineCount: r.lineCount ?? null,
-        weeklyUses: r.weeklyUses ?? 0,
+        ...mapRuleRow(r),
+        strengthScore: r.strengthScore ?? 0,
       });
       if (byId.size >= 200) break;
     }
@@ -276,34 +286,24 @@ export async function listRulesDirectoryFromDb(
       version: rule.version,
       certified: rule.certified,
       lineCount: rule.lineCount,
+      strengthScore: rule.strengthScore,
       stackName: stack.name,
-      weeklyUses: sql<number>`(
-        SELECT COALESCE(SUM(wu.total_copies), 0)::int
-        FROM rule_weekly_usage AS wu
-        WHERE wu.rule_id = ${rule.id}
-      )`.as("weeklyUses"),
+      weeklyUses: weeklyUsesSubquery,
     })
     .from(rule)
-    .innerJoin(ruleThreatMap, eq(ruleThreatMap.ruleId, rule.id))
     .innerJoin(ruleStack, eq(ruleStack.ruleId, rule.id))
     .innerJoin(stack, eq(stack.id, ruleStack.stackId))
     .where(inArray(stack.slug, stackSlugs))
     .orderBy(asc(rule.id))
-    .limit(200);
+    .limit(400);
 
-  const byId = new Map<string, Rule>();
+  const byId = new Map<string, Rule & { strengthScore: number }>();
   for (const row of rows) {
     const id = row.id;
     if (!byId.has(id)) {
       byId.set(id, {
-        id,
-        slug: row.slug,
-        name: row.name,
-        description: row.description,
-        version: row.version,
-        certified: row.certified,
-        lineCount: row.lineCount ?? null,
-        weeklyUses: row.weeklyUses ?? 0,
+        ...mapRuleRow(row),
+        strengthScore: row.strengthScore ?? 0,
       });
     }
     const cur = stacksByRuleId.get(id) ?? [];
@@ -329,13 +329,23 @@ export async function loadDirectoryFilterMeta(ruleIds: string[]): Promise<{
   }
 
   const layerRows = await db
-    .select({ ruleId: ruleLayerMap.ruleId, layer: ruleLayerMap.layer })
+    .select({
+      ruleId: ruleLayerMap.ruleId,
+      slug: layer.slug,
+      name: layer.name,
+      id: layer.id,
+      iconName: layer.iconName,
+      colorToken: layer.colorToken,
+      isSystem: layer.isSystem,
+    })
     .from(ruleLayerMap)
+    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
     .where(inArray(ruleLayerMap.ruleId, ruleIds));
 
   for (const row of layerRows) {
     const cur = layersByRuleId.get(row.ruleId) ?? [];
-    if (!cur.includes(row.layer as RuleLayer)) cur.push(row.layer as RuleLayer);
+    const layerObj = { id: row.id, slug: row.slug, name: row.name, iconName: row.iconName ?? null, colorToken: row.colorToken ?? null, isSystem: row.isSystem } as unknown as RuleLayer;
+    if (!cur.some((l) => (l as unknown as { slug: string }).slug === row.slug)) cur.push(layerObj);
     layersByRuleId.set(row.ruleId, cur);
   }
 
@@ -376,11 +386,7 @@ export async function listRulesPreviewForStackFromDb(stackSlug: string, limit: n
       version: rule.version,
       certified: rule.certified,
       lineCount: rule.lineCount,
-      weeklyUses: sql<number>`(
-        SELECT COALESCE(SUM(wu.total_copies), 0)::int
-        FROM rule_weekly_usage AS wu
-        WHERE wu.rule_id = ${rule.id}
-      )`.as("weeklyUses"),
+      weeklyUses: weeklyUsesSubquery,
     })
     .from(rule)
     .innerJoin(ruleThreatMap, eq(ruleThreatMap.ruleId, rule.id))
@@ -390,16 +396,7 @@ export async function listRulesPreviewForStackFromDb(stackSlug: string, limit: n
     .orderBy(asc(rule.id))
     .limit(lim);
 
-  return rows.map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-    description: r.description,
-    version: r.version,
-    certified: r.certified,
-    lineCount: r.lineCount ?? null,
-    weeklyUses: r.weeklyUses ?? 0,
-  }));
+  return rows.map(mapRuleRow);
 }
 
 /** Same shape as `GET /v1/rules/{slug}` including linkedThreats. */
@@ -414,11 +411,8 @@ export async function getRuleDetailFromDb(slug: string): Promise<RuleDetail | nu
       certified: rule.certified,
       lineCount: rule.lineCount,
       bodyMdx: rule.bodyMdx,
-      weeklyUses: sql<number>`(
-        SELECT COALESCE(SUM(wu.total_copies), 0)::int
-        FROM rule_weekly_usage AS wu
-        WHERE wu.rule_id = ${rule.id}
-      )`.as("weeklyUses"),
+      summaryMdx: rule.summaryMdx,
+      weeklyUses: weeklyUsesSubquery,
     })
     .from(rule)
     .where(eq(rule.slug, slug))
@@ -428,8 +422,9 @@ export async function getRuleDetailFromDb(slug: string): Promise<RuleDetail | nu
   if (!r) return null;
 
   const layerRows = await db
-    .select({ layer: ruleLayerMap.layer })
+    .select({ id: layer.id, slug: layer.slug, name: layer.name, iconName: layer.iconName, colorToken: layer.colorToken, isSystem: layer.isSystem })
     .from(ruleLayerMap)
+    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
     .where(eq(ruleLayerMap.ruleId, r.id));
 
   const threatRows = await db
@@ -454,7 +449,9 @@ export async function getRuleDetailFromDb(slug: string): Promise<RuleDetail | nu
     lineCount: r.lineCount ?? null,
     weeklyUses: r.weeklyUses ?? 0,
     bodyMdx: r.bodyMdx ?? null,
-    layers: layerRows.map((x) => x.layer),
+    summaryMdx: r.summaryMdx ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    layers: layerRows.map((x) => ({ id: x.id, slug: x.slug, name: x.name, iconName: x.iconName ?? null, colorToken: x.colorToken ?? null, isSystem: x.isSystem })) as any,
     linkedThreats: threatRows.map((t) => ({
       publicId: t.publicId,
       cveId: t.cveId ?? null,
@@ -614,4 +611,125 @@ export async function getLaunchStackThreatSeverityCounts(): Promise<StackThreatS
     });
   }
   return out;
+}
+
+export type LayerWithStats = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  concernStatement: string;
+  iconName: string | null;
+  colorToken: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  ruleCount: number;
+  threatCount: number;
+  stackCount: number;
+};
+
+export async function listLayersWithStatsFromDb(): Promise<LayerWithStats[]> {
+  const rows = await db
+    .select({
+      id: layer.id,
+      slug: layer.slug,
+      name: layer.name,
+      description: layer.description,
+      concernStatement: layer.concernStatement,
+      iconName: layer.iconName,
+      colorToken: layer.colorToken,
+      isSystem: layer.isSystem,
+      isActive: layer.isActive,
+      sortOrder: layer.sortOrder,
+      ruleCount: sql<number>`(
+        SELECT COUNT(DISTINCT rlm.rule_id)::int FROM rule_layer_map rlm WHERE rlm.layer_id = ${layer.id}
+      )`.as("ruleCount"),
+      threatCount: sql<number>`(
+        SELECT COUNT(*)::int FROM threat_layer tl WHERE tl.layer_id = ${layer.id}
+      )`.as("threatCount"),
+      stackCount: sql<number>`(
+        SELECT COUNT(DISTINCT rs.stack_id)::int FROM rule_layer_map rlm JOIN rule_stack rs ON rs.rule_id = rlm.rule_id WHERE rlm.layer_id = ${layer.id}
+      )`.as("stackCount"),
+    })
+    .from(layer)
+    .where(eq(layer.isActive, true))
+    .orderBy(asc(layer.sortOrder));
+
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    concernStatement: r.concernStatement,
+    iconName: r.iconName ?? null,
+    colorToken: r.colorToken ?? null,
+    isSystem: r.isSystem,
+    isActive: r.isActive,
+    sortOrder: r.sortOrder,
+    ruleCount: r.ruleCount ?? 0,
+    threatCount: r.threatCount ?? 0,
+    stackCount: r.stackCount ?? 0,
+  }));
+}
+
+export type ThreatForLayer = {
+  threatId: string;
+  name: string;
+  severity: string | null;
+  cveId: string | null;
+  relevance: string | null;
+  rationale: string | null;
+};
+
+export async function listThreatsForLayerFromDb(layerSlug: string): Promise<ThreatForLayer[]> {
+  const rows = await db.execute(sql`
+    SELECT t.public_id AS "threatId", t.name, t.severity, t.cve_id AS "cveId",
+           tl.relevance, tl.rationale
+    FROM threat_layer tl
+    JOIN layer l ON l.id = tl.layer_id
+    JOIN threat t ON t.public_id = tl.threat_id
+    WHERE l.slug = ${layerSlug}
+    ORDER BY
+      CASE tl.relevance WHEN 'primary' THEN 0 ELSE 1 END,
+      CASE t.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END
+  `);
+  return rows.rows as ThreatForLayer[];
+}
+
+export type ArticleCard = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  tags: string[];
+  publishedAt: Date | null;
+  contentPath: string | null;
+};
+
+/** News feed — articles ordered newest first. */
+export async function listArticlesFromDb(limit = 50): Promise<ArticleCard[]> {
+  const rows = await db
+    .select({
+      id: article.id,
+      slug: article.slug,
+      title: article.title,
+      excerpt: article.excerpt,
+      tags: article.tags,
+      publishedAt: article.publishedAt,
+      contentPath: article.contentPath,
+    })
+    .from(article)
+    .orderBy(desc(article.publishedAt), desc(article.createdAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    excerpt: r.excerpt ?? null,
+    tags: r.tags ?? [],
+    publishedAt: r.publishedAt ?? null,
+    contentPath: r.contentPath ?? null,
+  }));
 }
