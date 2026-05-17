@@ -1,0 +1,30 @@
+{
+  "name": "@aigently/mcp-server",
+  "version": "0.1.0",
+  "description": "Smart security guardrail injection for Cursor, Windsurf, and Claude Code — powered by real CVE data",
+  "keywords": ["mcp", "security", "cve", "cursor", "claude", "windsurf", "guardrails"],
+  "license": "MIT",
+  "bin": {
+    "aigently-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
