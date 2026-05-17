@@ -48,6 +48,25 @@ Never use distinct rule-covered pairs or stacks-with-threats as the denominator.
 
 ---
 
+## Schema Rules (v2)
+
+**`threat.aiAmplification` is `jsonb`, not `text`.** Pass raw objects — never `JSON.stringify()`. Drizzle handles serialisation. To display in a form textarea, use `JSON.stringify(value, null, 2)`.
+
+**`stackSubmission` onboarding uses typed columns**, not a JSONB blob:
+```typescript
+// Read: sub.stepStackCreated, sub.stepLogoUploaded, sub.stepRulesAssigned,
+//       sub.stepThreatsSynced, sub.stepCoverageFilled, sub.stepPublished
+// Write: db.update(stackSubmission).set({ stepStackCreated: true })
+```
+
+**`syncLog.phaseSummary`** (was `sourceSummary` — Drizzle field renamed, DB column unchanged).
+
+**`layer` has no `publicId`** — `slug` is the only external identifier.
+
+**Do not re-add:** `ruleLayerEnum`, `threat.details`, `rule.complexity`, `ruleSeverityTag`, `stackCoverageArea`, `stackFrameworkFeature`, `article.bodyMdx`. These were dropped in v2 as dead code.
+
+---
+
 ## Client Component Rule
 
 **Use `useTransition` for server action loading states in client components.** Never use `useState(isLoading)` for this purpose.

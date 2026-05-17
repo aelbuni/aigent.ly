@@ -97,48 +97,52 @@ npx tsx scripts/export-catalog.ts
 
 ## Database Schema (Key Tables)
 
-All in `packages/db/src/schema.ts`. Drizzle ORM, PostgreSQL.
+All in `packages/db/src/schema.ts`. Drizzle ORM, PostgreSQL. **Schema v2** (2026-05-17).
 
 ### Core Entities
 
 ```typescript
 // threat — CVE/vulnerability catalog
 {
-  publicId: text PK,          // e.g. "owasp_web-sql_injection"
+  publicId: text PK,            // e.g. "owasp_web-sql_injection"
   name: text,
-  severity: "critical"|"high"|"medium"|"low"|"info",
+  severity: "critical"|"high"|"medium"|"low"|"info",  // INDEXED
   family: "owasp_web"|"owasp_llm"|"mitre_atlas"|"vibe_coding",
-  source: "nvd"|"osv"|"ghsa"|"cisa_kev"|"aigently"|"mitre_atlas"|"aigently_internal",
-  aiAmplification: text,      // JSON — populated by Phase 2; NULL = not amplified yet
-  owaspRefs: text[],          // e.g. ["A01", "A07", "LLM03"]
+  source: "nvd"|"osv"|"ghsa"|"cisa_kev"|"aigently"|"mitre_atlas"|"aigently_internal",  // INDEXED
+  aiAmplification: jsonb,       // Structured object — populated by Phase 2; NULL = not amplified
+                                // Write raw object (not JSON.stringify); Drizzle handles it
+  owaspRefs: text[],            // e.g. ["A01", "A07", "LLM03"]
   mitreAttackIds: text[],
-  isActivelyExploited: boolean,
-  cveId: text,                // e.g. "CVE-2022-23541"
+  isActivelyExploited: boolean, // INDEXED
+  publishedAt: timestamp,       // INDEXED DESC (default ordering)
+  cveId: text,                  // e.g. "CVE-2022-23541"
 }
 
 // layer — security protection categories
 {
   id: uuid PK,
-  slug: text UNIQUE,          // e.g. "authentication_session"
+  slug: text UNIQUE,            // stable external ID — used by API, snapshot, MCP
   name: text,
-  isActive: boolean,          // IMPORTANT: only active layers get guardrails
+  isActive: boolean,            // IMPORTANT: only active layers get guardrails and count in coverage
   sortOrder: integer,
+  // publicId DROPPED in v2 — slug is the only external identifier
 }
 
 // stack — tech stacks
 {
   id: smallint PK,
-  slug: text UNIQUE,          // e.g. "nextjs", "fastapi"
+  slug: text UNIQUE,            // e.g. "nextjs", "fastapi"
   name: text,
-  securityGrade: text,        // e.g. "B+"
-  catalogStatus: "launch"|"coming_soon",
+  securityGrade: text,          // e.g. "B+"
+  catalogStatus: "launch"|"coming_soon",  // INDEXED
 }
 
 // rule — security guardrail rules
 {
   id: uuid PK,
   slug: text UNIQUE,
-  strengthScore: integer,     // 0–100; auto-computed; 0 = empty body
+  ruleType: "pattern"|"deps"|"config"|"runtime",  // INDEXED
+  strengthScore: integer,       // 0–100; auto-computed; 0 = empty body  // INDEXED DESC
   certified: boolean,
 }
 
@@ -147,14 +151,37 @@ All in `packages/db/src/schema.ts`. Drizzle ORM, PostgreSQL.
   id: uuid PK,
   stackId: smallint FK,
   layerId: uuid FK,
-  content: text,              // MDX guardrail content
-  qualityScore: smallint,     // 0–10 auto-computed by summarizer
-  scoreOverride: smallint,    // Admin manual override (takes priority)
-  scoreNote: text,            // Admin rationale for override
-  conflictCount: integer,     // # rule-rule conflicts detected
-  expiresAt: timestamp,       // Cache TTL — null = never expires
+  ideSlug: text,                // soft FK to ide.slug (no hard constraint)
+  content: text,                // MDX guardrail content
+  qualityScore: smallint,       // 0–10 auto-computed by summarizer  // INDEXED
+  scoreOverride: smallint,      // Admin manual override (takes priority)
+  scoreNote: text,              // Admin rationale for override
+  conflictCount: integer,       // # rule-rule conflicts detected
+  expiresAt: timestamp,         // Cache TTL — null = never expires  // INDEXED
   summarizerVersion: text,
-  cacheKey: text UNIQUE,      // Hash of (stack, layer, rule bodies)
+  cacheKey: text UNIQUE,        // Hash of (stack, layer, rule bodies)
+  INDEX on (stackId, layerId, ideSlug)
+}
+
+// stackSubmission — public proposals for new stacks
+{
+  id: uuid PK,
+  status: "pending"|"under_review"|"approved"|"rejected"|"onboarding"|"live",
+  // Typed onboarding step columns (replaced onboardingProgress jsonb in v2):
+  stepStackCreated: boolean,
+  stepLogoUploaded: boolean,
+  stepRulesAssigned: boolean,
+  stepThreatsSynced: boolean,
+  stepCoverageFilled: boolean,
+  stepPublished: boolean,
+}
+
+// syncLog — pipeline run history
+{
+  id: integer PK,
+  startedAt, finishedAt, status, errorMessage,
+  coveragePercent: smallint,
+  phaseSummary: jsonb,          // renamed from sourceSummary in v2 (DB col unchanged)
 }
 ```
 
@@ -162,14 +189,34 @@ All in `packages/db/src/schema.ts`. Drizzle ORM, PostgreSQL.
 
 ```typescript
 threatLayer    // threat ↔ layer (relevance: primary|secondary, rationale)
+               // INDEX on threatId, INDEX on layerId
 threatStack    // threat ↔ stack (severity override, isMitigatedByRules)
+               // INDEX on stackId
 ruleLayerMap   // rule ↔ layer
 ruleStack      // rule ↔ stack
-ruleThreatMap  // rule ↔ threat
+ruleThreatMap  // rule ↔ threat — INDEX on threatId (reverse lookup)
 sourceLayerMapping  // CVE source → layer routing config (CRITICAL — must be configured)
 owaspLayerMapping   // OWASP ref → layer routing config
-syncLog        // Pipeline run history (status, coveragePercent, sourceSummary JSONB)
+syncLog        // Pipeline run history
 ```
+
+### Schema v2 Changes (2026-05-17)
+
+**Dropped (dead code / overengineering):**
+- `ruleLayerEnum` — replaced by `layer` table
+- `threat.details` — never read or written
+- `rule.complexity` — never set by pipeline
+- `ruleSeverityTag` — never used; semantically wrong (threats have severity, not rules)
+- `stackCoverageArea` + `stackFrameworkFeature` + `frameworkFeatureStatusEnum` — pre-production overengineering
+- `layer.publicId` — redundant with `slug`
+- `article.bodyMdx` — dual storage; use `contentPath`
+
+**Changed:**
+- `threat.aiAmplification`: `text` → `jsonb` — pass raw object, not `JSON.stringify()`
+- `stackSubmission.onboardingProgress jsonb` → 6 typed boolean columns
+- `syncLog.sourceSummary` → renamed to `phaseSummary` (DB column name unchanged)
+
+**Added:** 11 indexes — see schema file header for full list
 
 ### The Root Cause of Low Coverage
 
