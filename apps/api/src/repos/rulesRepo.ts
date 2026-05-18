@@ -1,8 +1,17 @@
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 
-import { ide, rule, ruleIde, ruleLayerMap, ruleStack, ruleThreatMap, stack, threat } from "@aigently/db/schema";
+import { ide, layer, rule, ruleIde, ruleLayerMap, ruleStack, ruleThreatMap, stack, threat } from "@aigently/db/schema";
 
 import { db } from "../lib/db.js";
+
+export type LayerSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  iconName: string | null;
+  colorToken: string | null;
+  isSystem: boolean;
+};
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -94,7 +103,7 @@ export type RuleLinkedThreatRow = {
 
 export type RuleDetailRow = RuleListRow & {
   bodyMdx: string | null;
-  layers: ("security" | "architecture" | "code_quality")[];
+  layers: LayerSummary[];
   linkedThreats: RuleLinkedThreatRow[];
 };
 
@@ -122,8 +131,16 @@ export async function getRuleBySlug(slug: string): Promise<RuleDetailRow | null>
   if (!r) return null;
 
   const layerRows = await db
-    .select({ layer: ruleLayerMap.layer })
+    .select({
+      id: layer.id,
+      slug: layer.slug,
+      name: layer.name,
+      iconName: layer.iconName,
+      colorToken: layer.colorToken,
+      isSystem: layer.isSystem,
+    })
     .from(ruleLayerMap)
+    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
     .where(eq(ruleLayerMap.ruleId, r.id));
 
   const threatRows = await db
@@ -148,7 +165,14 @@ export async function getRuleBySlug(slug: string): Promise<RuleDetailRow | null>
     lineCount: r.lineCount,
     weeklyUses: r.weeklyUses ?? 0,
     bodyMdx: r.bodyMdx,
-    layers: layerRows.map((x) => x.layer),
+    layers: layerRows.map((x) => ({
+      id: x.id,
+      slug: x.slug,
+      name: x.name,
+      iconName: x.iconName ?? null,
+      colorToken: x.colorToken ?? null,
+      isSystem: x.isSystem,
+    })),
     linkedThreats: threatRows.map((t) => ({
       publicId: t.publicId,
       cveId: t.cveId ?? null,
@@ -158,18 +182,19 @@ export async function getRuleBySlug(slug: string): Promise<RuleDetailRow | null>
   };
 }
 
-const RULE_LAYER_VALUES = ["security", "architecture", "code_quality"] as const;
-export type RuleLayerValue = (typeof RULE_LAYER_VALUES)[number];
+/** Validate a layer slug exists in DB. Call listActiveLayers() once on startup to build a set. */
+export type RuleLayerValue = string;
 
-export function isRuleLayer(s: string): s is RuleLayerValue {
-  return (RULE_LAYER_VALUES as readonly string[]).includes(s);
+export async function getValidLayerSlugs(): Promise<Set<string>> {
+  const rows = await db.select({ slug: layer.slug }).from(layer).where(eq(layer.isActive, true));
+  return new Set(rows.map((r) => r.slug));
 }
 
-/** Rules linked to stack + ide; if layers non-empty, rule must have every layer in rule_layer_map. */
+/** Rules linked to stack + ide; if layerSlugs non-empty, rule must have every layer. */
 export async function listRulesForComposerExport(
   stackSlug: string,
   ideSlug: string,
-  layers: RuleLayerValue[]
+  layerSlugs: string[]
 ) {
   const whereBase = and(eq(stack.slug, stackSlug), eq(ide.slug, ideSlug));
 
@@ -192,15 +217,21 @@ export async function listRulesForComposerExport(
     .where(whereBase)
     .orderBy(asc(rule.slug));
 
-  if (layers.length === 0) return candidates;
+  if (layerSlugs.length === 0) return candidates;
 
   const ruleIds = candidates.map((c) => c.id);
   if (ruleIds.length === 0) return [];
 
   const layerRows = await db
-    .select({ ruleId: ruleLayerMap.ruleId, layer: ruleLayerMap.layer })
+    .select({ ruleId: ruleLayerMap.ruleId, layerSlug: layer.slug })
     .from(ruleLayerMap)
-    .where(and(inArray(ruleLayerMap.ruleId, ruleIds), inArray(ruleLayerMap.layer, layers)));
+    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
+    .where(
+      and(
+        inArray(ruleLayerMap.ruleId, ruleIds),
+        inArray(layer.slug, layerSlugs)
+      )
+    );
 
   const byRule = new Map<string, Set<string>>();
   for (const row of layerRows) {
@@ -209,10 +240,10 @@ export async function listRulesForComposerExport(
       set = new Set();
       byRule.set(row.ruleId, set);
     }
-    set.add(row.layer);
+    set.add(row.layerSlug);
   }
 
-  const needed = new Set(layers);
+  const needed = new Set(layerSlugs);
   return candidates.filter((c) => {
     const got = byRule.get(c.id);
     if (!got) return false;

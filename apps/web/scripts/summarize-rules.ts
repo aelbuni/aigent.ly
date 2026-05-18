@@ -1,13 +1,16 @@
 import "../lib/load-web-env";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { and, eq, isNull, like } from "drizzle-orm";
 
 import { db, pool, rule, ruleStack, ruleThreatMap, stack, threat } from "../lib/db";
+import { createLLMClient, getModelForTask } from "../lib/summarizer/llm-client";
 
 // ── Client setup ──────────────────────────────────────────────────────────────
-// Reads ANTHROPIC_API_KEY from env automatically.
-const MODEL      = "claude-sonnet-4-6";
+// Provider and model read from DB (admin-configurable), credentials from env.
+const [client, MODEL] = await Promise.all([
+  createLLMClient(),
+  getModelForTask("rule_summarization"),
+]);
 const FORCE      = process.env.FORCE === "1";
 const STACK_SLUG =
   process.env.STACK_SLUG ??
@@ -15,8 +18,6 @@ const STACK_SLUG =
     ? process.argv[process.argv.indexOf("--stack") + 1]
     : null) ??
   null;
-
-const client = new Anthropic();
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 

@@ -9,6 +9,16 @@ const monorepoRoot = path.join(__dirname, "../../");
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
+  images: {
+    domains: ["avatars.githubusercontent.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+        pathname: "/**",
+      },
+    ],
+  },
   turbopack: {
     root: monorepoRoot,
   },

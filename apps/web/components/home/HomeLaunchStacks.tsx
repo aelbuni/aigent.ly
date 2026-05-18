@@ -10,12 +10,12 @@ export function HomeLaunchStacks({ stacks }: { stacks: Stack[] }) {
   if (stacks.length === 0) return null;
 
   return (
-    <section className="border-b border-outline-variant bg-surface-container-lowest px-gutter py-14">
+    <section className="marketing-section marketing-section--spacious-bottom border-b border-outline-variant bg-surface-container-lowest">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 text-center">
+        <div className="marketing-section-header text-center">
           <span className="font-mono-label text-primary">MVP</span>
-          <h2 className="mt-2 font-h2 text-h2 text-on-surface">Pick your stack</h2>
-          <p className="mx-auto mt-2 max-w-2xl text-body-base text-on-surface-variant">
+          <h2 className="font-h2 text-h2 text-on-surface">Pick your stack</h2>
+          <p className="mx-auto max-w-2xl text-body-base text-on-surface-variant">
             Six launch stacks with certified rules and verified CVE linkage — browse posture and rules for each.
           </p>
         </div>

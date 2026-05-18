@@ -4,6 +4,7 @@ import type { components } from "@aigently/api-client";
 
 import {
   listIdesFromDb,
+  listLayersWithStatsFromDb,
   listPolicyTemplatesFromDb,
   listRulesPreviewForStackFromDb,
   listStacksFromDb,
@@ -13,8 +14,8 @@ import { getServerApiClient, tryInternal } from "@/lib/server-api";
 type Stack = components["schemas"]["Stack"];
 type Ide = components["schemas"]["Ide"];
 type Rule = components["schemas"]["Rule"];
-type RuleLayer = components["schemas"]["RuleLayer"];
 type PolicyTemplate = components["schemas"]["PolicyTemplate"];
+type LayerForStack = { id: string; slug: string; name: string; description: string; concernStatement: string; iconName: string | null; colorToken: string | null; isSystem: boolean; isActive: boolean; sortOrder: number; ruleCount: number };
 
 export async function listStacksAction(): Promise<Stack[]> {
   const client = await getServerApiClient();
@@ -73,6 +74,43 @@ export async function listPolicyTemplatesForStackAction(stackSlug: string): Prom
   return items;
 }
 
+export async function listLayersForStackAction(stackSlug: string): Promise<LayerForStack[]> {
+  const client = await getServerApiClient();
+  let items: LayerForStack[] = [];
+  if (client) {
+    const res = await tryInternal(
+      () =>
+        (client.GET as unknown as (path: string, opts: unknown) => Promise<{ data?: { items?: LayerForStack[] } }>)(
+          "/v1/stacks/{stackSlug}/layers",
+          { params: { path: { stackSlug } } }
+        ),
+      null
+    );
+    items = res?.data?.items ?? [];
+  }
+  if (items.length === 0 && stackSlug) {
+    try {
+      const all = await listLayersWithStatsFromDb();
+      items = all.map((l) => ({
+        id: l.id,
+        slug: l.slug,
+        name: l.name,
+        description: l.description,
+        concernStatement: l.concernStatement,
+        iconName: l.iconName,
+        colorToken: l.colorToken,
+        isSystem: l.isSystem,
+        isActive: l.isActive,
+        sortOrder: l.sortOrder,
+        ruleCount: l.ruleCount,
+      }));
+    } catch {
+      items = [];
+    }
+  }
+  return items;
+}
+
 export async function listRulesPreviewAction(
   stackSlug: string,
   limit: number
@@ -102,7 +140,8 @@ export async function listRulesPreviewAction(
 export async function postComposerExportAction(body: {
   stackSlug: string;
   ideSlug: string;
-  layers?: RuleLayer[];
+  layers?: string[];
+  mode?: "rule" | "skill";
 }) {
   const client = await getServerApiClient();
   if (!client) {
@@ -114,7 +153,9 @@ export async function postComposerExportAction(body: {
         body: {
           stackSlug: body.stackSlug,
           ideSlug: body.ideSlug,
-          layers: body.layers?.length ? body.layers : undefined,
+          layers: body.layers?.length
+            ? (body.layers as ("security" | "architecture" | "code_quality")[])
+            : undefined,
         },
       }),
     null

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
-import { getStackDetailFromDb, getStackOverviewFromDb } from "@/lib/catalog-from-db";
+import {
+  getStackDetailFromDb,
+  getStackOverviewFromDb,
+  listLayersWithStatsFromDb,
+} from "@/lib/catalog-from-db";
 import { mergeStackOverviewFromApi, severityChipClass } from "@/lib/stack-overview-content";
 import { getServerApiClient, tryInternal } from "@/lib/server-api";
 
@@ -73,6 +77,12 @@ export default async function StackOverviewPage({
 
   const overview = mergeStackOverviewFromApi(detail.slug, apiOverview);
   const rulesHref = `/rules?stack=${encodeURIComponent(detail.slug)}`;
+
+  let stackLayers: Awaited<ReturnType<typeof listLayersWithStatsFromDb>> = [];
+  try {
+    const allLayers = await listLayersWithStatsFromDb();
+    stackLayers = allLayers.filter((l) => l.ruleCount > 0);
+  } catch { /* non-critical */ }
   const criticalPad = String(overview.criticalCount).padStart(2, "0");
   const highPad = String(overview.highCount).padStart(2, "0");
 
@@ -81,7 +91,7 @@ export default async function StackOverviewPage({
   if (comingSoon) {
     return (
       <div className="relative mx-auto max-w-3xl px-gutter py-16">
-        <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+        <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
         <nav className="relative mb-6 font-mono-label text-on-surface-variant">
           <Link href="/stacks" className="text-primary hover:underline">
             Stacks
@@ -131,8 +141,25 @@ export default async function StackOverviewPage({
         </nav>
       </aside>
 
-      <main className="dot-grid flex-1 p-8">
-        <nav className="mb-4 flex items-center gap-2 font-mono-label text-on-surface-variant">
+      <main className="dot-grid flex-1 px-gutter py-6 lg:p-8">
+        <nav
+          className="mb-6 flex flex-wrap gap-2 rounded-xl border border-outline-variant bg-surface-container-low p-3 lg:hidden"
+          aria-label="Security suite"
+        >
+          <Link href="/rules" className={sidebarLinkClass(false)}>
+            <MaterialSymbol name="security" className="!text-lg" />
+            Rules
+          </Link>
+          <Link href="/threats" className={sidebarLinkClass(false)}>
+            <MaterialSymbol name="warning" className="!text-lg" />
+            Threats
+          </Link>
+          <Link href="/stacks" className={sidebarLinkClass(true)}>
+            <MaterialSymbol name="layers" className="!text-lg" />
+            Stacks
+          </Link>
+        </nav>
+        <nav className="mb-4 flex flex-wrap items-center gap-2 font-mono-label text-on-surface-variant">
           <Link href="/stacks" className="hover:text-primary">
             Stacks
           </Link>
@@ -266,6 +293,48 @@ export default async function StackOverviewPage({
                 </div>
               </div>
             ) : null}
+
+            {stackLayers.length > 0 && (
+              <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
+                <h3 className="mb-4 font-mono-label text-primary">Coverage by protection layer</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-outline-variant text-left font-mono-label text-xs text-on-surface-variant">
+                        <th className="pb-2 pr-4">Layer</th>
+                        <th className="pb-2 pr-4">Rules</th>
+                        <th className="pb-2">Explore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stackLayers.map((l) => (
+                        <tr key={l.slug} className="border-b border-outline-variant/50 last:border-0">
+                          <td className="py-2 pr-4">
+                            <Link
+                              href={`/layers/${l.slug}`}
+                              className="text-on-surface hover:text-primary hover:underline"
+                            >
+                              {l.name}
+                            </Link>
+                          </td>
+                          <td className="py-2 pr-4 font-mono-data text-on-surface-variant">
+                            {l.ruleCount}
+                          </td>
+                          <td className="py-2">
+                            <Link
+                              href={`/explore?stack=${detail.slug}&layer=${l.slug}`}
+                              className="font-mono-label text-xs text-primary hover:underline"
+                            >
+                              Explore →
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

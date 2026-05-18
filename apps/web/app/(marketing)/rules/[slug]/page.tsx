@@ -9,7 +9,9 @@ import { MaterialSymbol } from "@/components/MaterialSymbol";
 import { threatReferenceUrl } from "@/lib/threat-links";
 import { getServerApiClient, tryInternal } from "@/lib/server-api";
 
-type RuleDetail = components["schemas"]["RuleDetail"];
+export const dynamic = "force-dynamic";
+
+type RuleDetail = components["schemas"]["RuleDetail"] & { summaryMdx?: string | null };
 type RuleLinkedThreat = components["schemas"]["RuleLinkedThreat"];
 
 export default async function RuleDetailPage({
@@ -54,7 +56,7 @@ export default async function RuleDetailPage({
 
   return (
     <div className="relative mx-auto max-w-3xl px-gutter py-10">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
       <nav className="relative mb-6 font-mono-label text-on-surface-variant">
         <Link href="/rules" className="text-primary hover:underline">
           Rules
@@ -76,14 +78,19 @@ export default async function RuleDetailPage({
         <p className="mt-3 text-on-surface-variant">{rule.description}</p>
         {rule.layers?.length ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            {rule.layers.map((layer) => (
-              <span
-                key={layer}
-                className="rounded-sm border border-outline-variant bg-surface-container-low px-2 py-0.5 font-mono-label text-on-surface-variant"
-              >
-                {layer.replaceAll("_", " ")}
-              </span>
-            ))}
+            {rule.layers.map((l) => {
+              const slug = typeof l === "string" ? l : (l as { slug: string }).slug;
+              const name = typeof l === "string" ? l.replaceAll("_", " ") : (l as { name: string }).name;
+              return (
+                <Link
+                  key={slug}
+                  href={`/layers/${slug}`}
+                  className="rounded-sm border border-outline-variant bg-surface-container-low px-2 py-0.5 font-mono-label text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                >
+                  {name}
+                </Link>
+              );
+            })}
           </div>
         ) : null}
       </header>
@@ -136,7 +143,11 @@ export default async function RuleDetailPage({
             </pre>
           }
         >
-          <RuleBodyPanel body={rule.bodyMdx ?? ""} initialView={initialView} />
+          <RuleBodyPanel
+            body={rule.bodyMdx ?? ""}
+            summaryMdx={rule.summaryMdx ?? null}
+            initialView={initialView}
+          />
         </Suspense>
       </section>
     </div>

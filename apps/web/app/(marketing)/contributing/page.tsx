@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function ContributingPage() {
   return (
     <div className="relative mx-auto max-w-3xl px-gutter py-12">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
       <h1 className="relative text-3xl font-bold text-on-surface">Contributing CVE evidence</h1>
       <p className="relative mt-4 text-body-base text-on-surface-variant">
         To unlock a &quot;coming soon&quot; stack, we need enough real, verifiable CVE (or published GHSA) rows with

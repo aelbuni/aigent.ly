@@ -127,15 +127,21 @@ function formatUsesLabel(n: number): string {
 export function enrichApiRule(
   rule: Rule,
   stackLabels: string[],
-  meta?: { layers?: RuleLayer[]; threatSignals?: string }
+  meta?: { layers?: RuleLayer[]; threatSignals?: string; strengthScore?: number }
 ): RuleDirectoryCard {
   const h = hashSlice(rule.id);
-  const stars = 3 + (h % 3);
+  const score = meta?.strengthScore ?? 0;
+  // Derive 1–5 stars from 0–100 strengthScore; fall back to hash-based 3–5 if score is 0
+  const stars = score > 0
+    ? (score >= 80 ? 5 : score >= 60 ? 4 : score >= 40 ? 3 : score >= 20 ? 2 : 1)
+    : 3 + (h % 3);
   const usesK = 0.4 + (h % 50) / 10;
   const usesLabel =
     rule.weeklyUses > 0 ? formatUsesLabel(rule.weeklyUses) : usesK >= 1 ? `${usesK.toFixed(1)}k` : `${200 + (h % 800)}`;
   const hay = `${rule.name} ${rule.description} ${rule.slug}`.toLowerCase();
   const tags: string[] = [];
+  if (/-security-patterns-v\d+$/i.test(rule.slug)) tags.push("Patterns");
+  if (/-security-deps-v\d+$/i.test(rule.slug)) tags.push("Deps");
   if (/sql|inject|execute|query|orm/i.test(hay)) tags.push("A03:2021");
   if (/csrf|token|cookie/i.test(hay)) tags.push("CSRF");
   if (/env|secret|credential|leak/i.test(hay)) tags.push("Sensitive data");
@@ -153,6 +159,17 @@ export function enrichApiRule(
     layers: meta?.layers,
     threatSignals: meta?.threatSignals,
   };
+}
+
+export function computeStrengthScore(rule: {
+  certified: boolean;
+  bodyMdx?: string | null;
+  lineCount?: number | null;
+}): number {
+  const doNot = /DO NOT|NEVER|AVOID/i.test(rule.bodyMdx ?? "") ? 10 : 0;
+  const cert = rule.certified ? 20 : 0;
+  const lineScore = Math.min(Math.floor((rule.lineCount ?? 0) / 5), 20);
+  return Math.min(doNot + cert + lineScore + 10, 100);
 }
 
 function inferStacksFromHaystack(hay: string): string[] {

@@ -4,11 +4,11 @@ import { JTBD_STEPS } from "@/lib/home-marketing-content";
 
 export function HomeJtbdSteps() {
   return (
-    <section className="mx-auto max-w-4xl border-t border-outline-variant px-gutter py-xl">
-      <div className="mb-12 text-center">
-        <span className="font-mono-label mb-2 block uppercase text-primary">The job to be done</span>
+    <section className="marketing-section mx-auto max-w-4xl border-t border-outline-variant">
+      <div className="marketing-section-header text-center">
+        <span className="font-mono-label uppercase text-primary">The job to be done</span>
         <h2 className="font-h2 text-h2 uppercase tracking-tight">Under one minute</h2>
-        <p className="mt-2 text-on-surface-variant">Five steps from stack to live guardrails — each links where it helps.</p>
+        <p className="text-on-surface-variant">Five steps from stack to live guardrails — each links where it helps.</p>
       </div>
       <ol className="space-y-6">
         {JTBD_STEPS.map((step, i) => (

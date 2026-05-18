@@ -23,8 +23,8 @@ export function HomeStatBand({
   });
 
   return (
-    <section className="border-b border-outline-variant bg-surface-container-low py-12">
-      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-gutter text-center md:grid-cols-4">
+    <section className="marketing-section border-b border-outline-variant bg-surface-container-low">
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 text-center md:grid-cols-4">
         {resolved.map((tile) => (
           <div key={tile.label}>
             <span className="font-h1 text-h1 block text-primary">{tile.value}</span>

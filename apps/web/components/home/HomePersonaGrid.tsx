@@ -4,12 +4,12 @@ import { USER_STORIES } from "@/lib/home-marketing-content";
 
 export function HomePersonaGrid() {
   return (
-    <section className="bg-inverse-surface px-gutter py-xl text-inverse-on-surface">
+    <section className="marketing-section marketing-section--inverse bg-inverse-surface text-inverse-on-surface">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12">
-          <span className="font-mono-label mb-2 block uppercase text-inverse-primary">Who this is for</span>
+        <div className="marketing-section-header">
+          <span className="font-mono-label uppercase text-inverse-primary">Who this is for</span>
           <h2 className="font-h2 text-h2 tracking-tight">Four real stories</h2>
-          <p className="mt-2 max-w-2xl text-inverse-on-surface/80">
+          <p className="max-w-2xl text-inverse-on-surface/80">
             If one of these sounds like your team, you are the audience for a rules-first security layer on top of AI
             IDEs.
           </p>

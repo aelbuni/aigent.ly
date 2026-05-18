@@ -22,6 +22,55 @@
       "when": 1777869000000,
       "tag": "0002_stack_catalog_status",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778707398339,
+      "tag": "0003_sticky_gorgon",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1747440000000,
+      "tag": "0004_layer_entity",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778958474758,
+      "tag": "0005_fresh_vance_astro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778962200000,
+      "tag": "0006_pending_migrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778990000000,
+      "tag": "0007_llm_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1747526400000,
+      "tag": "0008_guardrail_quality_score",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1747612800000,
+      "tag": "0009_drop_stack_layer",
+      "breakpoints": true
     }
   ]
 }

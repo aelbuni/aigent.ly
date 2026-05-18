@@ -5,10 +5,10 @@ import { THREE_USPS } from "@/lib/home-marketing-content";
 
 export function HomeDifferentiators() {
   return (
-    <section className="border-b border-outline-variant bg-inverse-surface px-gutter py-xl text-inverse-on-surface">
+    <section className="marketing-section marketing-section--inverse border-b border-outline-variant bg-inverse-surface text-inverse-on-surface">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 text-center">
-          <span className="font-mono-label mb-2 block uppercase text-inverse-primary">Why it matters</span>
+        <div className="marketing-section-header text-center">
+          <span className="font-mono-label uppercase text-inverse-primary">Why it matters</span>
           <h2 className="font-h2 text-h2 tracking-tight">Three differences vs. raw AI IDEs</h2>
         </div>
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">

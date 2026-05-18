@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "../../styles/nextadmin/satoshi.css";
+@import "../../styles/nextadmin/style.css";
+
+@import "flatpickr/dist/flatpickr.min.css";
+@import "jsvectormap/dist/jsvectormap.css";
+
+.admin-root {
+  min-height: 100svh;
+}
+
+/* Bridge shadcn semantic tokens to NextAdmin palette (forms/detail pages) */
+@theme inline {
+  --color-primary-foreground: #ffffff;
+  --color-muted: var(--color-gray-2);
+  --color-muted-foreground: var(--color-dark-6);
+  --color-card: #ffffff;
+  --color-card-foreground: var(--color-dark);
+  --color-popover: #ffffff;
+  --color-popover-foreground: var(--color-dark);
+  --color-background: var(--color-gray-2);
+  --color-foreground: var(--color-dark);
+  --color-destructive: var(--color-red);
+  --color-destructive-foreground: #ffffff;
+  --color-secondary: var(--color-gray-3);
+  --color-secondary-foreground: var(--color-dark);
+  --color-accent: var(--color-gray-2);
+  --color-accent-foreground: var(--color-dark);
+  --color-border: var(--color-stroke);
+  --color-input: var(--color-stroke);
+  --color-ring: var(--color-primary);
+}

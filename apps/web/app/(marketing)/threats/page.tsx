@@ -12,6 +12,8 @@ import {
 import { getServerApiClient, tryInternal } from "@/lib/server-api";
 import { toFeedItem, type ThreatFeedItem } from "@/lib/threats-showcase";
 
+export const dynamic = "force-dynamic";
+
 type Threat = components["schemas"]["Threat"];
 
 function severityStyle(sev: string | null | undefined) {
@@ -205,8 +207,8 @@ export default async function ThreatsPage({
   );
 
   return (
-    <div className="relative flex min-h-[calc(100vh-3.5rem)]">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+    <div className="relative min-h-[calc(100vh-3.5rem)]">
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
       <div className="relative mx-auto w-full max-w-7xl px-gutter py-10">
         <header className="relative mb-8 space-y-6">
           <div>
@@ -295,8 +297,8 @@ export default async function ThreatsPage({
             </div>
           </div>
 
-          <div className="flex max-h-[min(85vh,calc(100vh-10rem))] flex-col gap-4 lg:col-span-5">
-            <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-col gap-4 lg:col-span-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
               <h2 className="font-mono-label text-on-surface-variant">Threat feed</h2>
               {totalFiltered > 0 ? (
                 <p className="font-mono-data text-sm text-on-surface-variant">
@@ -305,7 +307,7 @@ export default async function ThreatsPage({
                 </p>
               ) : null}
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]">
+            <div className="space-y-4">
               {totalFiltered === 0 ? (
                 <p className="rounded-lg border border-outline-variant bg-surface-container-low p-6 text-sm text-on-surface-variant">
                   No threats match.{" "}
@@ -365,7 +367,7 @@ export default async function ThreatsPage({
             </div>
             {totalFiltered > 0 && totalPages > 1 ? (
               <nav
-                className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-outline-variant pt-4"
+                className="flex flex-col gap-3 border-t border-outline-variant pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                 aria-label="Threat feed pagination"
               >
                 {page <= 1 ? (

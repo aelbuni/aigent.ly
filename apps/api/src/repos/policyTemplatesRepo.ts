@@ -11,7 +11,7 @@ export async function listPolicyTemplatesForStack(stackSlug: string) {
       slug: policyTemplate.slug,
       name: policyTemplate.name,
       description: policyTemplate.description,
-      layer: policyTemplate.layer,
+      layerId: policyTemplate.layerId,
       sortOrder: policyTemplate.sortOrder,
     })
     .from(policyTemplate)

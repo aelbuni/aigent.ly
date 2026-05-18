@@ -53,7 +53,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "list_stacks",
       description: "Returns all supported technology stacks with their slug, name, ecosystem, catalog status, and security grade.",
-      inputSchema: { type: "object", properties: {} },
+      inputSchema: { type: "object", properties: {}, required: [] },
     },
     {
       name: "get_rule",
@@ -94,7 +94,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "list_layers",
       description: "Returns the 15 protection layer categories used by Aigent.ly to organize guardrail rules (e.g. Authentication & Session, Input Validation, Secrets, etc.).",
-      inputSchema: { type: "object", properties: {} },
+      inputSchema: { type: "object", properties: {}, required: [] },
+    },
+    {
+      name: "get_manifest",
+      description: "Returns catalog metadata: version, generation timestamp, and counts of threats, rules, and stacks.",
+      inputSchema: { type: "object", properties: {}, required: [] },
     },
     {
       name: "compose_guardrail",
@@ -269,7 +274,6 @@ async function handleComposeGuardrail(args: ComposeGuardrailArgs) {
     return {
       error: "connection_failed",
       message: "Could not reach the Aigent.ly API.",
-      api_url: apiUrl,
       fallback: {
         stack: args.stack_slug,
         layers_inferred: layerNames,

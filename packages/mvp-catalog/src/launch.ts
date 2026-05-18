@@ -1,34 +1,25 @@
-/** Six launch stacks (quality-first MVP). Order = homepage / directory sort. */
-export const LAUNCH_STACK_SLUGS = [
-  "nextjs",
-  "express",
-  "fastapi",
-  "nestjs",
-  "nuxt",
-  "react-spa",
-] as const;
+import { STACK_REGISTRY } from "./stack-registry.js";
 
-export type LaunchStackSlug = (typeof LAUNCH_STACK_SLUGS)[number];
+export const LAUNCH_STACK_SLUGS = STACK_REGISTRY
+  .filter(s => s.catalogStatus === "launch")
+  .sort((a, b) => a.sortOrder - b.sortOrder)
+  .map(s => s.slug);
 
-/** Tier 2 — incomplete real data; shown as “coming soon” in UI. */
-export const COMING_SOON_STACK_SLUGS = ["django", "rails", "go", "ios", "android"] as const;
+export const COMING_SOON_STACK_SLUGS = STACK_REGISTRY
+  .filter(s => s.catalogStatus === "coming_soon")
+  .sort((a, b) => a.sortOrder - b.sortOrder)
+  .map(s => s.slug);
 
-export type ComingSoonStackSlug = (typeof COMING_SOON_STACK_SLUGS)[number];
+export const ALL_CATALOG_STACK_SLUGS = [...LAUNCH_STACK_SLUGS, ...COMING_SOON_STACK_SLUGS];
 
-export const ALL_CATALOG_STACK_SLUGS = [
-  ...LAUNCH_STACK_SLUGS,
-  ...COMING_SOON_STACK_SLUGS,
-] as const;
-
-export function isLaunchStackSlug(s: string): s is LaunchStackSlug {
-  return (LAUNCH_STACK_SLUGS as readonly string[]).includes(s);
+export function isLaunchStackSlug(s: string): boolean {
+  return LAUNCH_STACK_SLUGS.includes(s);
 }
 
-export function isComingSoonStackSlug(s: string): s is ComingSoonStackSlug {
-  return (COMING_SOON_STACK_SLUGS as readonly string[]).includes(s);
+export function isComingSoonStackSlug(s: string): boolean {
+  return COMING_SOON_STACK_SLUGS.includes(s);
 }
 
-/** Resolved real GHSA IDs allowed as primary keys (add when placeholders are replaced). */
 export const REAL_GHSA_PUBLIC_IDS = new Set<string>([
   // e.g. "GHSA-7gfc-8cq8-jh5f" — populate when advisory IDs are verified
 ]);

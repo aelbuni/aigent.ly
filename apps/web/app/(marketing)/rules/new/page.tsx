@@ -89,7 +89,7 @@ export default async function NewRulePage() {
 
   return (
     <div className="relative mx-auto max-w-3xl px-gutter py-10">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
       <nav className="relative mb-6 font-mono-label text-on-surface-variant">
         <Link href="/rules" className="text-primary hover:underline">
           Rules

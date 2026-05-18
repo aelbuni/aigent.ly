@@ -6,6 +6,8 @@ import { getServerApiClient, tryInternal } from "@/lib/server-api";
 
 import type { components } from "@aigently/api-client";
 
+export const dynamic = "force-dynamic";
+
 type Stack = components["schemas"]["Stack"];
 
 export default async function StacksIndexPage() {
@@ -25,7 +27,7 @@ export default async function StacksIndexPage() {
 
   return (
     <div className="relative mx-auto max-w-7xl px-gutter py-10">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-30" />
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
       <header className="relative mb-10">
         <h1 className="font-mono-label text-3xl font-bold tracking-widest text-on-surface">Stacks</h1>
         <p className="mt-2 max-w-2xl text-body-base text-on-surface-variant">
@@ -78,30 +80,37 @@ export default async function StacksIndexPage() {
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {comingSoon.map((s) => (
                   <li key={s.slug}>
-                    <Link
-                      href={`/stacks/${encodeURIComponent(s.slug)}`}
-                      className="flex h-full flex-col justify-between rounded-xl border border-dashed border-outline-variant bg-surface-container-low/40 p-6 transition-all hover:border-primary/50"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low">
-                          <MaterialSymbol name="hourglass_empty" className="!text-2xl text-on-surface-variant" />
+                    <div className="relative flex h-full flex-col justify-between rounded-xl border border-dashed border-outline-variant bg-surface-container-low/40 p-6 transition-all hover:border-primary/50">
+                      <Link
+                        href={`/stacks/${encodeURIComponent(s.slug)}`}
+                        className="absolute inset-0 z-0 rounded-xl"
+                        aria-label={`${s.name} stack (${s.slug})`}
+                      />
+                      <div className="pointer-events-none relative z-10 flex flex-1 flex-col justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low">
+                            <MaterialSymbol name="hourglass_empty" className="!text-2xl text-on-surface-variant" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-semibold text-on-surface">{s.name}</h3>
+                            <p className="mt-1 font-mono-data text-on-surface-variant">{s.slug}</p>
+                            <p className="mt-2 text-body-sm text-on-surface-variant">
+                              Accepting CVE contributions —{" "}
+                              <Link
+                                href="/contributing"
+                                className="pointer-events-auto relative z-20 text-primary underline-offset-2 hover:underline"
+                              >
+                                Contributing guide
+                              </Link>
+                              .
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-semibold text-on-surface">{s.name}</h3>
-                          <p className="mt-1 font-mono-data text-on-surface-variant">{s.slug}</p>
-                          <p className="mt-2 text-body-sm text-on-surface-variant">
-                            Accepting CVE contributions —{" "}
-                            <Link href="/contributing" className="text-primary underline-offset-2 hover:underline">
-                              Contributing guide
-                            </Link>
-                            .
-                          </p>
+                        <div className="mt-6 border-t border-outline-variant pt-4 font-mono-label text-on-surface-variant">
+                          Coming soon
                         </div>
                       </div>
-                      <div className="mt-6 border-t border-outline-variant pt-4 font-mono-label text-on-surface-variant">
-                        Coming soon
-                      </div>
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -19,7 +19,7 @@ export function HomeView({
   verifiedThreatCount: number | null;
 }) {
   return (
-    <main className="flex flex-col bg-background font-body-base text-on-surface">
+    <main className="flex flex-col overflow-x-clip bg-background font-body-base text-on-surface">
       <HomeHeroValue />
       <HomeMarqueeStrip />
       <HomeLaunchStacks stacks={launchStacks} />

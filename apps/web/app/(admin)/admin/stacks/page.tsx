@@ -71,7 +71,7 @@ export default async function StacksPage({
                   title={
                     <span className="flex items-center gap-1.5">
                       {s.name}
-                      {s.ruleCount === 0 && s.catalogStatus === "launch" && (
+                      {Number(s.ruleCount) === 0 && s.catalogStatus === "launch" && (
                         <span className="text-xs font-medium text-[#FFA70B]">⚠ 0 rules</span>
                       )}
                     </span>

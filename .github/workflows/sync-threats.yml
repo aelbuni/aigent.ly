@@ -12,7 +12,7 @@ on:
 
 jobs:
   sync:
-    name: Ingest → Amplify → Summarize → Export → Commit
+    name: Ingest → Amplify → Summarize Rules → Summarize Layers → Export → Commit
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -51,12 +51,18 @@ jobs:
           FORCE: ${{ github.event.inputs.force_summarize == 'true' && '1' || '' }}
         run: npm run summarize:rules
 
-      - name: Phase 4 — Export catalog to JSON
+      - name: Phase 4 — Summarize layer guardrails
+        env:
+          DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npm run summarize:layers --workspace web
+
+      - name: Phase 5 — Export catalog to JSON
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run export:catalog -w web
 
-      - name: Phase 5 — Commit updated catalog artifacts
+      - name: Phase 6 — Commit updated catalog artifacts
         run: |
           git config user.name  "aigently-bot"
           git config user.email "bot@aigently.io"

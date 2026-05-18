@@ -37,6 +37,7 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+tests/e2e/screenshots/
 blob-report/
 playwright/.cache/
 
@@ -63,3 +64,9 @@ Desktop.ini
 tmp/
 temp/
 *.tmp
+
+# --- Private ops runbook (local only — never commit) ---
+docs/ops/
+
+# --- Private launch / marketing docs (local only — never commit) ---
+private/

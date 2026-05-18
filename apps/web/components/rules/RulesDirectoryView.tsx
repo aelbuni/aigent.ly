@@ -5,18 +5,13 @@ import { MaterialSymbol } from "@/components/MaterialSymbol";
 import type { RuleDirectoryCard } from "@/lib/rules-directory-showcase";
 import {
   buildRulesDirectoryHref,
+  setClassification,
   toggleListValue,
   toggleStackInSearch,
   type RulesDirectorySearch,
 } from "@/lib/rules-directory-url";
 
 type Stack = components["schemas"]["Stack"];
-
-const RULE_TYPES = [
-  { id: "security", label: "Security" },
-  { id: "performance", label: "Performance" },
-  { id: "type_safety", label: "Type safety" },
-] as const;
 
 const PROTECT_OPTS = [
   { id: "a03", label: "A03:2021 Injection" },
@@ -27,9 +22,11 @@ const PROTECT_OPTS = [
 function RulesFilterNav({
   stacks,
   filter,
+  classificationCounts,
 }: {
   stacks: Stack[];
   filter: RulesDirectorySearch;
+  classificationCounts: { all: number; patterns: number; deps: number };
 }) {
   return (
     <div className="space-y-6">
@@ -75,27 +72,56 @@ function RulesFilterNav({
         </nav>
       </div>
       <div>
-        <h4 className="mb-3 font-mono-label text-on-surface-variant">Rule type</h4>
+        <h4 className="mb-3 font-mono-label text-on-surface-variant">Rule classification</h4>
         <nav className="flex flex-col gap-2">
-          {RULE_TYPES.map((t) => {
-            const active = filter.types.includes(t.id);
-            return (
-              <Link
-                key={t.id}
-                href={toggleListValue(filter, "types", t.id)}
-                className={`flex items-center gap-2 rounded px-2 py-1.5 font-body-sm ${
-                  active ? "bg-surface-container font-medium text-on-surface" : "text-on-surface-variant hover:bg-surface-container"
-                }`}
-              >
-                <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${active ? "border-primary bg-primary/10" : "border-outline"}`}
-                >
-                  {active ? <span className="h-2 w-2 rounded-sm bg-primary" /> : null}
-                </span>
-                {t.label}
-              </Link>
-            );
-          })}
+          <Link
+            href={setClassification(filter, "all")}
+            className={`flex items-center justify-between gap-2 rounded px-2 py-1.5 font-body-sm ${
+              filter.classification === "all"
+                ? "bg-surface-container font-medium text-on-surface"
+                : "text-on-surface-variant hover:bg-surface-container"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <MaterialSymbol name="grid_view" className="!text-base text-on-surface-variant" />
+              All rules
+            </span>
+            <span className="rounded bg-surface-container px-2 py-0.5 font-mono-label text-[10px] text-on-surface-variant">
+              {classificationCounts.all}
+            </span>
+          </Link>
+          <Link
+            href={setClassification(filter, "patterns")}
+            className={`flex items-center justify-between gap-2 rounded px-2 py-1.5 font-body-sm ${
+              filter.classification === "patterns"
+                ? "bg-surface-container font-medium text-on-surface"
+                : "text-on-surface-variant hover:bg-surface-container"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <MaterialSymbol name="verified_user" className="!text-base text-primary" />
+              Pattern rules
+            </span>
+            <span className="rounded bg-surface-container px-2 py-0.5 font-mono-label text-[10px] text-on-surface-variant">
+              {classificationCounts.patterns}
+            </span>
+          </Link>
+          <Link
+            href={setClassification(filter, "deps")}
+            className={`flex items-center justify-between gap-2 rounded px-2 py-1.5 font-body-sm ${
+              filter.classification === "deps"
+                ? "bg-surface-container font-medium text-on-surface"
+                : "text-on-surface-variant hover:bg-surface-container"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <MaterialSymbol name="warning" className="!text-base text-tertiary-container" />
+              Deps rules
+            </span>
+            <span className="rounded bg-surface-container px-2 py-0.5 font-mono-label text-[10px] text-on-surface-variant">
+              {classificationCounts.deps}
+            </span>
+          </Link>
         </nav>
       </div>
       <div>
@@ -145,6 +171,7 @@ export function RulesDirectoryView({
   stacks,
   cards,
   allCardsCount,
+  classificationCounts,
   filter,
   showcaseMode,
   catalogTotal,
@@ -153,13 +180,18 @@ export function RulesDirectoryView({
   stacks: Stack[];
   cards: RuleDirectoryCard[];
   allCardsCount: number;
+  classificationCounts: { all: number; patterns: number; deps: number };
   filter: RulesDirectorySearch;
   showcaseMode: boolean;
   catalogTotal: number;
   clearHref: string;
 }) {
   const hasActiveFilters =
-    filter.stacks.length > 0 || filter.types.length > 0 || filter.protect.length > 0 || filter.q.length > 0;
+    filter.stacks.length > 0 ||
+    filter.types.length > 0 ||
+    filter.classification !== "all" ||
+    filter.protect.length > 0 ||
+    filter.q.length > 0;
 
   const chipItems: { label: string; href: string }[] = [];
   for (const slug of filter.stacks) {
@@ -170,8 +202,13 @@ export function RulesDirectoryView({
     });
   }
   for (const t of filter.types) {
-    const label = RULE_TYPES.find((x) => x.id === t)?.label ?? t;
-    chipItems.push({ label, href: toggleListValue(filter, "types", t) });
+    chipItems.push({ label: t, href: toggleListValue(filter, "types", t) });
+  }
+  if (filter.classification !== "all") {
+    chipItems.push({
+      label: filter.classification === "patterns" ? "Pattern rules" : "Deps rules",
+      href: setClassification(filter, "all"),
+    });
   }
   for (const p of filter.protect) {
     const label = PROTECT_OPTS.find((x) => x.id === p)?.label ?? p;
@@ -186,14 +223,14 @@ export function RulesDirectoryView({
 
   return (
     <div className="relative flex min-h-[calc(100vh-3.5rem)]">
-      <div className="pointer-events-none fixed inset-0 dot-grid opacity-40" />
+      <div className="pointer-events-none absolute inset-0 dot-grid opacity-40" aria-hidden />
 
       <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[260px] shrink-0 flex-col gap-2 overflow-y-auto border-r border-outline-variant bg-surface-container-low py-4 lg:flex">
         <div className="px-6 py-4">
           <p className="font-mono-label text-on-surface-variant">Filters</p>
         </div>
         <div className="px-6">
-          <RulesFilterNav stacks={stacks} filter={filter} />
+          <RulesFilterNav stacks={stacks} filter={filter} classificationCounts={classificationCounts} />
         </div>
       </aside>
 
@@ -206,7 +243,7 @@ export function RulesDirectoryView({
             </span>
           </summary>
           <div className="border-t border-outline-variant px-4 pb-4 pt-2">
-            <RulesFilterNav stacks={stacks} filter={filter} />
+            <RulesFilterNav stacks={stacks} filter={filter} classificationCounts={classificationCounts} />
           </div>
         </details>
         <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -225,6 +262,7 @@ export function RulesDirectoryView({
           <form action="/rules" method="get" className="flex w-full max-w-md items-center gap-2 lg:w-auto">
             {filter.stacks.length > 0 ? <input type="hidden" name="stacks" value={filter.stacks.join(",")} /> : null}
             {filter.types.length > 0 ? <input type="hidden" name="types" value={filter.types.join(",")} /> : null}
+            {filter.classification !== "all" ? <input type="hidden" name="class" value={filter.classification} /> : null}
             {filter.protect.length > 0 ? <input type="hidden" name="protect" value={filter.protect.join(",")} /> : null}
             <div className="relative flex-1">
               <MaterialSymbol
@@ -247,6 +285,29 @@ export function RulesDirectoryView({
             </button>
           </form>
         </header>
+
+        <div className="mb-8 flex gap-4 rounded-xl border border-outline-variant bg-surface-container-low p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MaterialSymbol name="lightbulb" className="!text-xl" />
+          </div>
+          <div>
+            <h3 className="font-mono-label text-on-surface">Rules type guidance</h3>
+            <p className="mt-1 text-body-sm text-on-surface-variant">
+              <span className="font-semibold text-on-surface">Pattern rules</span> are always safe: they guide code
+              structure (ALWAYS/NEVER) without changing dependencies. <span className="font-semibold text-on-surface">Deps rules</span>{" "}
+              only WARN/CONFIRM and should never auto-edit dependency files.
+            </p>
+          </div>
+          <div className="ml-auto hidden items-center gap-2 sm:flex">
+            <Link
+              href="/rules/new"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-mono-label text-on-primary"
+            >
+              <MaterialSymbol name="add" className="!text-lg" />
+              New custom rule
+            </Link>
+          </div>
+        </div>
 
         {hasActiveFilters ? (
           <div className="mb-8 flex flex-wrap items-center gap-2">
@@ -336,6 +397,14 @@ export function RulesDirectoryView({
                 </div>
               </article>
             ))}
+            <Link
+              href="/rules/new"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center text-on-surface-variant transition-colors hover:bg-surface-container"
+            >
+              <MaterialSymbol name="add_circle" className="!text-3xl" />
+              <span className="font-mono-label text-on-surface">New custom rule</span>
+              <span className="text-body-sm">Define project constraints</span>
+            </Link>
           </div>
         )}
       </div>

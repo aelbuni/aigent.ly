@@ -17,6 +17,8 @@ import {
 import { parseRulesDirectorySearch } from "@/lib/rules-directory-url";
 import { getServerApiClient, tryInternal } from "@/lib/server-api";
 
+export const dynamic = "force-dynamic";
+
 type Stack = components["schemas"]["Stack"];
 
 function launchStacksOnly(stacks: Stack[]): Stack[] {
@@ -125,12 +127,19 @@ export default async function RulesPage({
     enrichApiRule(r, stacksByRuleId.get(r.id) ?? [], {
       layers: layersByRuleId.get(r.id),
       threatSignals: threatSignalsByRuleId.get(r.id),
+      strengthScore: (r as { strengthScore?: number }).strengthScore,
     })
   );
   const unfilteredCount = cards.length;
+  const classificationCounts = {
+    all: unfilteredCount,
+    patterns: cards.filter((c) => /-security-patterns-v\d+$/i.test(c.slug)).length,
+    deps: cards.filter((c) => /-security-deps-v\d+$/i.test(c.slug)).length,
+  };
   const filtered = filterDirectoryCards(cards, {
     q: filter.q,
     types: filter.types,
+    classification: filter.classification,
     protect: filter.protect,
   });
 
@@ -146,6 +155,7 @@ export default async function RulesPage({
       stacks={launchStacks}
       cards={filtered}
       allCardsCount={unfilteredCount}
+      classificationCounts={classificationCounts}
       filter={filter}
       showcaseMode={unfilteredCount === 0}
       catalogTotal={catalogTotal}

@@ -5,7 +5,7 @@ import { HERO, TESTIMONIAL } from "@/lib/home-marketing-content";
 
 export function HomeHeroValue() {
   return (
-    <section className="dot-grid flex min-h-[640px] flex-col items-center justify-center bg-inverse-surface px-gutter py-xl text-center text-inverse-on-surface">
+    <section className="dot-grid flex min-h-[520px] flex-col items-center justify-center bg-inverse-surface px-gutter py-xl text-center text-inverse-on-surface sm:min-h-[640px]">
       <div className="mb-6 inline-flex items-center rounded border border-inverse-on-surface/25 bg-inverse-on-surface/10 px-3 py-1">
         <span className="font-mono-label mr-2 uppercase tracking-widest text-inverse-primary">{HERO.badge}</span>
         <div className="h-1 w-1 rounded-full bg-inverse-primary" />
@@ -29,9 +29,9 @@ export function HomeHeroValue() {
       </div>
       <blockquote className="mb-1 max-w-2xl rounded-xl border border-inverse-on-surface/20 bg-inverse-on-surface/10 px-6 py-4 text-left">
         <p className="font-body-base italic text-inverse-on-surface">&quot;{TESTIMONIAL.quote}&quot;</p>
-        <footer className="mt-3 font-mono-label text-[11px] uppercase tracking-widest text-inverse-primary">
+        <cite className="mt-3 block font-mono-label text-[11px] not-italic uppercase tracking-widest text-inverse-primary">
           — {TESTIMONIAL.attribution}
-        </footer>
+        </cite>
       </blockquote>
     </section>
   );

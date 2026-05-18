@@ -4,10 +4,10 @@ import { MaterialSymbol } from "@/components/MaterialSymbol";
 
 export function HomeComposerTeaser() {
   return (
-    <section className="mx-auto max-w-7xl px-gutter py-xl">
-      <div className="flex flex-col items-center gap-12 rounded-xl bg-primary-container p-12 text-white md:flex-row">
+    <section className="marketing-section marketing-section--inset mx-auto max-w-7xl">
+      <div className="flex flex-col items-center gap-8 rounded-xl bg-primary-container p-8 text-white sm:gap-12 sm:p-12 md:flex-row">
         <div className="md:w-1/3">
-          <span className="font-mono-label mb-4 block text-on-primary-container">Composer (post-MVP)</span>
+          <span className="font-mono-label block text-on-primary-container">Composer (post-MVP)</span>
           <h2 className="font-h2 text-h2 mb-6">Build your agent&apos;s guardrails in seconds.</h2>
           <p className="font-body-base mb-8 text-white/80">
             Today: pick a stack and install the certified rule from the directory. Composer returns later for layered
@@ -22,7 +22,7 @@ export function HomeComposerTeaser() {
           </Link>
         </div>
         <div className="w-full rounded-lg border border-slate-700 bg-slate-900 p-8 shadow-2xl md:w-2/3">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             <div className="space-y-4">
               <label className="font-mono-label text-slate-400">01. STACK</label>
               <select

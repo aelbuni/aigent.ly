@@ -16,9 +16,16 @@
     "db:studio": "npm run db:studio -w web",
     "db:seed": "npm run db:seed -w web",
     "db:seed:upsert": "npm run db:seed:upsert -w web",
+    "db:setup": "npm run db:up && sleep 2 && npm run db:migrate && npm run db:seed",
     "sync:catalog": "npm run sync -w sync",
+    "sync:threats": "npm run sync:threats -w web",
+    "amplify:threats": "npm run amplify:threats -w web",
+    "summarize:rules": "npm run summarize:rules -w web",
+    "export:catalog": "npm run export:catalog -w web",
     "verify:local-api": "node scripts/verify-local-api.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:responsive": "playwright test tests/e2e/responsive-marketing.spec.ts",
+    "test:e2e:responsive:dev": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 playwright test tests/e2e/responsive-marketing.spec.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0"

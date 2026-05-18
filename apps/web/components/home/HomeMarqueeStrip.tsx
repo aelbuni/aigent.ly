@@ -13,8 +13,8 @@ export function HomeMarqueeStrip() {
   );
 
   return (
-    <div className="overflow-hidden border-y border-slate-800 bg-slate-950 py-4">
-      <div className="animate-marquee flex gap-12 px-gutter">
+    <div className="overflow-x-clip border-y border-slate-800 bg-slate-950 py-4">
+      <div className="animate-marquee flex gap-12 px-gutter [contain:layout]">
         {segment}
         {segment}
       </div>

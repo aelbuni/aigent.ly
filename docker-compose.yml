@@ -9,3 +9,8 @@ services:
       POSTGRES_USER: aigently
       POSTGRES_PASSWORD: aigently
       POSTGRES_DB: aigently
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

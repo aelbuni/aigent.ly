@@ -1,0 +1,278 @@
+@theme inline {
+  --color-background: #fcf8ff;
+  --color-surface: #fcf8ff;
+  --color-surface-dim: #dcd8e3;
+  --color-surface-bright: #fcf8ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f2fc;
+  --color-surface-container: #f0ecf6;
+  --color-surface-container-high: #eae6f1;
+  --color-surface-container-highest: #e4e1eb;
+  --color-on-surface: #1b1b22;
+  --color-on-surface-variant: #464553;
+  --color-inverse-surface: #303037;
+  --color-inverse-on-surface: #f3eff9;
+  --color-outline: #777584;
+  --color-outline-variant: #c8c4d5;
+  --color-surface-tint: #544fc0;
+  --color-primary: #1f108e;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #3730a3;
+  --color-on-primary-container: #a9a7ff;
+  --color-inverse-primary: #c3c0ff;
+  --color-secondary: #4648d4;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #6063ee;
+  --color-on-secondary-container: #fffbff;
+  --color-tertiary: #511c00;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #752c00;
+  --color-on-tertiary-container: #fe9562;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-primary-fixed: #e2dfff;
+  --color-primary-fixed-dim: #c3c0ff;
+  --color-on-primary-fixed: #0f0069;
+  --color-on-primary-fixed-variant: #3b35a7;
+  --color-secondary-fixed: #e1e0ff;
+  --color-secondary-fixed-dim: #c0c1ff;
+  --color-on-secondary-fixed: #07006c;
+  --color-on-secondary-fixed-variant: #2f2ebe;
+  --color-tertiary-fixed: #ffdbcc;
+  --color-tertiary-fixed-dim: #ffb694;
+  --color-on-tertiary-fixed: #351000;
+  --color-on-tertiary-fixed-variant: #7a3003;
+  --color-surface-variant: #e4e1eb;
+  --color-on-background: #1b1b22;
+
+  --spacing-gutter: clamp(16px, 4vw, 40px);
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: clamp(32px, 6vw, 80px);
+  --spacing-section-y: clamp(3.5rem, 8vw, 5rem);
+  --spacing-section-y-tight: clamp(2.5rem, 6vw, 4rem);
+  --spacing-section-inverse-top: clamp(4rem, 10vw, 6rem);
+  --spacing-dot-grid: 12px;
+
+  --radius-sm: 0.125rem;
+  --radius-DEFAULT: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+}
+
+@layer components {
+  .font-mono-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    text-transform: uppercase;
+  }
+
+  .font-mono-data {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+  }
+
+  .font-body-base {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .font-body-sm {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .text-h1 {
+    font-size: clamp(28px, 5vw, 56px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
+  .text-h2 {
+    font-size: clamp(20px, 3vw, 36px);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  .text-h3 {
+    font-size: clamp(16px, 2vw, 22px);
+    line-height: 1.4;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+
+  .font-h1,
+  .font-h2,
+  .font-h3 {
+    font-family: var(--font-sans);
+  }
+
+  /* Marketing section rhythm — extra top padding at background-color boundaries */
+  .marketing-section {
+    padding-inline: var(--spacing-gutter);
+    padding-block: var(--spacing-section-y);
+  }
+
+  .marketing-section--spacious-bottom {
+    padding-bottom: clamp(4rem, 9vw, 5rem);
+  }
+
+  @media (min-width: 768px) {
+    .marketing-section--spacious-bottom {
+      padding-bottom: 5rem;
+    }
+  }
+
+  .marketing-section--inverse {
+    padding-top: var(--spacing-section-inverse-top);
+    padding-bottom: var(--spacing-section-y-tight);
+  }
+
+  @media (min-width: 768px) {
+    .marketing-section--inverse {
+      padding-top: 6rem;
+      padding-bottom: 5rem;
+    }
+  }
+
+  .marketing-section--inset {
+    padding-top: var(--spacing-section-y-tight);
+    padding-bottom: clamp(4rem, 8vw, 5rem);
+  }
+
+  @media (min-width: 768px) {
+    .marketing-section--inset {
+      padding-top: 5rem;
+      padding-bottom: 5rem;
+    }
+  }
+
+  .marketing-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .marketing-section-header {
+      margin-bottom: 3rem;
+    }
+  }
+}
+
+@keyframes stitch-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.dot-grid {
+  background-image: radial-gradient(
+    circle,
+    rgba(119, 117, 132, 0.1) 1px,
+    transparent 1px
+  );
+  background-size: 12px 12px;
+}
+
+.risk-card-hover:hover {
+  background-color: var(--color-surface-container-low);
+  border-color: var(--color-primary);
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: stitch-marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes icon-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+  animation: icon-fade-in 0.15s ease-in;
+}
+
+.material-symbols-outlined--fill {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+:root {
+  --layer-auth: 239 68 68;
+  --layer-authz: 249 115 22;
+  --layer-input: 234 179 8;
+  --layer-secrets: 168 85 247;
+  --layer-deps: 59 130 246;
+  --layer-privacy: 236 72 153;
+  --layer-api: 20 184 166;
+  --layer-db: 16 185 129;
+  --layer-infra: 245 158 11;
+  --layer-cache: 99 102 241;
+  --layer-frontend: 14 165 233;
+  --layer-obs: 107 114 128;
+  --layer-resilience: 34 197 94;
+  --layer-ai: 139 92 246;
+  --layer-quality: 100 116 139;
+}
+
+.site-ui {
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+}

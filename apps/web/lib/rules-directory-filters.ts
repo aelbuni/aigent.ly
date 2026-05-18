@@ -21,30 +21,48 @@ export function filterDirectoryCards(
   opts: {
     q: string;
     types: string[];
+    classification: "all" | "patterns" | "deps";
     protect: string[];
+    layers?: string[];
   }
 ): RuleDirectoryCard[] {
   const q = opts.q.trim().toLowerCase();
   const types = opts.types as RuleTypeFilter[];
   const protect = opts.protect as ProtectFilter[];
+  const classification = opts.classification;
+  const layerFilter = opts.layers ?? [];
 
   return cards.filter((card) => {
-    const layers = card.layers ?? [];
+    const cardLayerSlugs: string[] = (card.layers ?? []).map((l) =>
+      typeof l === "string" ? l : (l as { slug: string }).slug
+    );
     const threat = (card.threatSignals ?? "").toLowerCase();
     const hay = `${card.name} ${card.description} ${card.slug} ${card.tags.join(" ")} ${card.stacks.join(" ")} ${threat}`.toLowerCase();
     if (q && !hay.includes(q)) return false;
 
+    if (classification !== "all") {
+      const isPatterns = /-security-patterns-v\d+$/i.test(card.slug);
+      const isDeps = /-security-deps-v\d+$/i.test(card.slug);
+      if (classification === "patterns" && !isPatterns) return false;
+      if (classification === "deps" && !isDeps) return false;
+    }
+
+    if (layerFilter.length > 0) {
+      const matches = layerFilter.some((slug) => cardLayerSlugs.includes(slug));
+      if (!matches) return false;
+    }
+
     if (types.length > 0) {
       const matchesType = types.some((t) => {
         if (t === "security") {
-          if (layers.includes("security")) return true;
+          if (cardLayerSlugs.some((s) => ["auth_session","authz_access","input_validation","secrets_credentials","security"].includes(s))) return true;
           return SECURITY_TEXT_FALLBACK.test(hay);
         }
         if (t === "performance") {
           return /perf|budget|cache|speed|latency|hydration/i.test(hay);
         }
         if (t === "type_safety") {
-          if (layers.includes("code_quality")) return true;
+          if (cardLayerSlugs.some((s) => ["code_quality"].includes(s))) return true;
           return /typescript|strict|type|pydantic|model|schema|generic|interface|enum|orm/i.test(hay);
         }
         return true;

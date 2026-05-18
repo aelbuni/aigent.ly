@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Mono, DM_Sans } from "next/font/google";
 
-import { SiteFooter } from "@/components/layout/SiteFooter";
-import { SiteHeader } from "@/components/layout/SiteHeader";
-
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -37,21 +34,16 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Material Symbols: not bundled via next/font (variable font from Google). */}
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font, @next/next/google-font-display */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=optional"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
         />
       </head>
-      {/* suppressHydrationWarning: extensions often inject body attrs (e.g. style zoom) before React loads */}
-      <body
-        className="flex min-h-full flex-col bg-background font-sans text-on-surface"
-        suppressHydrationWarning
-      >
-        <SiteHeader />
-        <div className="flex flex-1 flex-col bg-background pt-14">{children}</div>
-        <SiteFooter />
+      <body className="min-h-full" suppressHydrationWarning>
+        {children}
       </body>
     </html>
   );

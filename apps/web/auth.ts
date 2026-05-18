@@ -1,6 +1,5 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
 
 import { db } from "@/lib/db";
 import {
@@ -11,12 +10,12 @@ import {
   verificationToken,
 } from "@/lib/db/schema";
 
-const githubConfigured =
-  Boolean(process.env.AUTH_GITHUB_ID) &&
-  Boolean(process.env.AUTH_GITHUB_SECRET);
+import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   trustHost: true,
+  session: { strategy: "jwt" },
   adapter: DrizzleAdapter(db, {
     usersTable: user,
     accountsTable: account,
@@ -24,12 +23,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationToken,
     authenticatorsTable: authenticator,
   }),
-  providers: githubConfigured
-    ? [
-        GitHub({
-          clientId: process.env.AUTH_GITHUB_ID,
-          clientSecret: process.env.AUTH_GITHUB_SECRET,
-        }),
-      ]
-    : [],
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt({ token, user: u }) {
+      if (u) {
+        token.role = (u as { role?: string }).role ?? "user";
+      }
+      // Always sync role from DB so promotions apply without a manual sign-out cycle.
+      if (token.sub) {
+        const dbUser = await db.query.user.findFirst({
+          where: (t, { eq }) => eq(t.id, token.sub!),
+          columns: { role: true },
+        });
+        if (dbUser) token.role = dbUser.role;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      session.user.role = (token.role as string) ?? "user";
+      return session;
+    },
+  },
 });

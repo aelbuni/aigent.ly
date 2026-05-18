@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 120,
+            "statusMessage": "Checking build…",
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty'); echo \"$f\" | grep -q 'apps/web' || exit 0; cd /Users/aelbuni/Projects/aelbuni/aigently-v1/apps/web && out=$(npm run build 2>&1); code=$?; if [ $code -ne 0 ]; then errors=$(echo \"$out\" | grep -E '^.*(Error|Warning|error TS)' | grep -v 'node_modules' | head -20); printf '{\"systemMessage\": \"⛔ Build failed after edit — fix before continuing:\\n%s\"}' \"$errors\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

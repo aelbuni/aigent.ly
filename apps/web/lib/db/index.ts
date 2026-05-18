@@ -1,5 +1,3 @@
-import "../load-web-env";
-
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -9,7 +7,9 @@ const connectionString = process.env.DATABASE_URL ?? "";
 
 const pool = new pg.Pool({
   connectionString: connectionString || undefined,
-  // Pool creation is deferred — error surfaces at query time, not import time
+  max: 3,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
 });
 
 export const db = drizzle(pool, { schema });
