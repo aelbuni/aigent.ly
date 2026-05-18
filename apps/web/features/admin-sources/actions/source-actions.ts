@@ -63,40 +63,40 @@ export async function reAssignAllThreatLayers(_formData?: FormData): Promise<voi
   revalidatePath("/admin/sources");
 }
 
-// OWASP ref → layer slug defaults
+// OWASP ref → layer slug defaults (slugs must match the `layer.slug` column exactly)
 const OWASP_TO_LAYER: Record<string, string> = {
-  "A01": "authorization_access_control",
-  "A02": "secrets_management",
-  "A03": "input_validation_sanitization",
-  "A04": "error_handling_logging",
-  "A05": "supply_chain_deps",
-  "A06": "supply_chain_deps",
-  "A07": "authentication_session",
-  "A08": "input_validation_sanitization",
-  "A09": "error_handling_logging",
-  "A10": "authentication_session",
+  "A01": "authz_access",
+  "A02": "secrets_credentials",
+  "A03": "input_validation",
+  "A04": "observability",
+  "A05": "dependency_supply",
+  "A06": "dependency_supply",
+  "A07": "auth_session",
+  "A08": "input_validation",
+  "A09": "observability",
+  "A10": "auth_session",
   "LLM01": "ai_safety",
-  "LLM02": "input_validation_sanitization",
+  "LLM02": "input_validation",
   "LLM03": "ai_safety",
   "LLM04": "ai_safety",
-  "LLM05": "authentication_session",
-  "LLM06": "input_validation_sanitization",
+  "LLM05": "auth_session",
+  "LLM06": "input_validation",
   "LLM07": "ai_safety",
-  "LLM08": "secrets_management",
-  "LLM09": "supply_chain_deps",
+  "LLM08": "secrets_credentials",
+  "LLM09": "dependency_supply",
   "LLM10": "ai_safety",
 };
 
-// Source → layer defaults
+// Source → layer defaults (slugs must match the `layer.slug` column exactly)
 const SOURCE_TO_LAYER: Array<{ source: "nvd" | "osv" | "ghsa" | "cisa_kev" | "aigently" | "mitre_atlas" | "aigently_internal"; layerSlug: string; relevance: "primary" | "secondary" }> = [
-  { source: "nvd",               layerSlug: "input_validation_sanitization", relevance: "primary" },
-  { source: "nvd",               layerSlug: "authentication_session",        relevance: "secondary" },
-  { source: "ghsa",              layerSlug: "supply_chain_deps",             relevance: "primary" },
-  { source: "osv",               layerSlug: "supply_chain_deps",             relevance: "primary" },
-  { source: "cisa_kev",          layerSlug: "authentication_session",        relevance: "primary" },
-  { source: "cisa_kev",          layerSlug: "input_validation_sanitization", relevance: "secondary" },
-  { source: "mitre_atlas",       layerSlug: "ai_safety",                    relevance: "primary" },
-  { source: "aigently_internal", layerSlug: "authentication_session",        relevance: "primary" },
+  { source: "nvd",               layerSlug: "input_validation",   relevance: "primary" },
+  { source: "nvd",               layerSlug: "auth_session",        relevance: "secondary" },
+  { source: "ghsa",              layerSlug: "dependency_supply",   relevance: "primary" },
+  { source: "osv",               layerSlug: "dependency_supply",   relevance: "primary" },
+  { source: "cisa_kev",          layerSlug: "auth_session",        relevance: "primary" },
+  { source: "cisa_kev",          layerSlug: "input_validation",    relevance: "secondary" },
+  { source: "mitre_atlas",       layerSlug: "ai_safety",           relevance: "primary" },
+  { source: "aigently_internal", layerSlug: "auth_session",        relevance: "primary" },
 ];
 
 export async function loadDefaultSourceMappings(): Promise<void> {

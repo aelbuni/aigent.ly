@@ -334,12 +334,12 @@ export async function amplifyThreatsForLayer(
         await db
           .update(threat)
           .set({
-            aiAmplification: JSON.stringify({
+            aiAmplification: {
               patternLines: result.patternLines,
               ruleContext: result.ruleContext,
               generatedAt: new Date().toISOString(),
               model: MODEL,
-            }),
+            },
           })
           .where(eq(threat.publicId, t.publicId));
 

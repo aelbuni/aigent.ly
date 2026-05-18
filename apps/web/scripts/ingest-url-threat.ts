@@ -313,12 +313,12 @@ async function persistThreat(
   await db
     .update(threat)
     .set({
-      aiAmplification: JSON.stringify({
+      aiAmplification: {
         patternLines: t.patternLines,
         ruleContext: t.ruleContext,
         generatedAt: new Date().toISOString(),
         model: MODEL,
-      }),
+      },
     })
     .where(eq(threat.publicId, t.publicId));
 

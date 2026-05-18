@@ -261,11 +261,7 @@ export async function POST(req: Request) {
         cisaActionDue: t.cisaActionDue ?? null,
         publishedAt: t.publishedAt ? new Date(t.publishedAt) : null,
         syncedAt: t.syncedAt ? new Date(t.syncedAt) : null,
-        aiAmplification: typeof t.aiAmplification === "string"
-          ? t.aiAmplification
-          : t.aiAmplification != null
-            ? JSON.stringify(t.aiAmplification)
-            : null,
+        aiAmplification: t.aiAmplification ?? null,
       })
       .onConflictDoUpdate({
         target: threat.publicId,
@@ -280,11 +276,7 @@ export async function POST(req: Request) {
           isActivelyExploited: t.isActivelyExploited ?? false,
           cisaActionDue: t.cisaActionDue ?? null,
           syncedAt: t.syncedAt ? new Date(t.syncedAt) : null,
-          aiAmplification: typeof t.aiAmplification === "string"
-            ? t.aiAmplification
-            : t.aiAmplification != null
-              ? JSON.stringify(t.aiAmplification)
-              : null,
+          aiAmplification: t.aiAmplification ?? null,
         },
       });
     counts.threats++;
