@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 
 const SEVERITY_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -19,6 +19,10 @@ const OWASP_REFS = ["A01","A02","A03","A04","A05","A06","A07","A08","A09","A10",
 
 export default async function ThreatDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Guard: "new" is handled by threats/new/page.tsx — shouldn't reach here
+  if (id === "new") {
+    redirect("/admin/threats/new");
+  }
   const threatId = decodeURIComponent(id);
   const [data, layers, allStacks] = await Promise.all([
     getThreatById(threatId),

@@ -639,13 +639,13 @@ export async function getGuardrailCoverage() {
       .from(summarizedGuardrail)
       .groupBy(summarizedGuardrail.stackId),
 
-    // Aggregate quality stats
+    // Aggregate quality stats — use COALESCE(scoreOverride, qualityScore) so manual overrides are reflected
     db
       .select({
-        avgScore: sql<number>`ROUND(AVG(${summarizedGuardrail.qualityScore}), 1)`,
+        avgScore: sql<number>`ROUND(AVG(COALESCE(${summarizedGuardrail.scoreOverride}, ${summarizedGuardrail.qualityScore})), 1)`,
         avgConflicts: sql<number>`ROUND(AVG(${summarizedGuardrail.conflictCount}), 1)`,
         zeroConflictCount: sql<number>`COUNT(*) FILTER (WHERE ${summarizedGuardrail.conflictCount} = 0)`,
-        needsAttentionCount: sql<number>`COUNT(*) FILTER (WHERE ${summarizedGuardrail.qualityScore} < 5)`,
+        needsAttentionCount: sql<number>`COUNT(*) FILTER (WHERE COALESCE(${summarizedGuardrail.scoreOverride}, ${summarizedGuardrail.qualityScore}) < 5)`,
         totalCount: count(),
       })
       .from(summarizedGuardrail),
@@ -706,7 +706,7 @@ export async function getGuardrailCoverage() {
     stackId: r.stackId,
     stackName: r.stackName,
     stackSlug: r.stackSlug,
-    totalLayers: r.totalLayers,
+    totalLayers: allActiveLayersCount,  // was: r.totalLayers — that counted rule-covered layers only
     coveredLayers: coveredMap.get(r.stackId) ?? 0,
   }));
 
