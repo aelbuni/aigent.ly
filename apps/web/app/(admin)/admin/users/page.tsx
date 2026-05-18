@@ -13,6 +13,7 @@ import {
 } from "@/components/nextadmin/admin-data-table";
 import {
   AdminPageHeader,
+  AdminPagination,
   AdminSearchForm,
   AdminSearchInput,
   AdminSearchSubmit,
@@ -20,6 +21,7 @@ import {
 import { updateUserRole } from "@/features/admin-users/actions/user-actions";
 import { auth } from "@/auth";
 import { listUsers } from "@/lib/admin-queries";
+import { DemoteButton } from "./_demote-button";
 
 export default async function UsersPage({
   searchParams,
@@ -72,20 +74,22 @@ export default async function UsersPage({
                   <AdminRowActions
                     extra={
                       !isSelf ? (
-                        <form
-                          action={updateUserRole.bind(
-                            null,
-                            u.id,
-                            u.role === "admin" ? "user" : "admin",
-                          )}
-                        >
-                          <button
-                            type="submit"
-                            className="border-stroke text-dark hover:border-primary dark:border-dark-3 rounded-sm border px-2.5 py-1 text-xs font-medium"
+                        u.role === "admin" ? (
+                          <DemoteButton
+                            action={updateUserRole.bind(null, u.id, "user")}
+                          />
+                        ) : (
+                          <form
+                            action={updateUserRole.bind(null, u.id, "admin")}
                           >
-                            {u.role === "admin" ? "Demote" : "Promote"}
-                          </button>
-                        </form>
+                            <button
+                              type="submit"
+                              className="border-stroke text-dark hover:border-primary dark:border-dark-3 rounded-sm border px-2.5 py-1 text-xs font-medium"
+                            >
+                              Promote
+                            </button>
+                          </form>
+                        )
                       ) : undefined
                     }
                   />
@@ -95,6 +99,8 @@ export default async function UsersPage({
           )}
         </AdminTableBody>
       </AdminDataTable>
+
+      <AdminPagination page={page} perPage={25} total={total} searchParams={{ search: params.search }} />
     </div>
   );
 }

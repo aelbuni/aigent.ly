@@ -576,7 +576,7 @@ export async function registerV1Routes(app: FastifyInstance) {
         lineCount: row.lineCount ?? null,
         weeklyUses: row.weeklyUses ?? 0,
         bodyMdx: row.bodyMdx,
-        layers: row.layers,
+        layers: row.layers?.map((l: any) => (typeof l === "string" ? l : l.slug)) ?? [],
         linkedThreats: row.linkedThreats,
       };
     }
@@ -677,7 +677,7 @@ export async function registerV1Routes(app: FastifyInstance) {
     required: ["id", "slug", "name", "description", "concernStatement", "isSystem", "isActive", "sortOrder"],
     properties: {
       id: { type: "string", format: "uuid" },
-      publicId: { type: "string" },
+      // publicId was dropped in schema v2 — slug is the only external layer identifier
       slug: { type: "string" },
       name: { type: "string" },
       description: { type: "string" },
@@ -794,11 +794,16 @@ export async function registerV1Routes(app: FastifyInstance) {
         },
         response: {
           204: { type: "null" },
+          401: { type: "object", required: ["error"], properties: { error: { type: "string" } } },
           404: { type: "object", required: ["type", "title", "status"], properties: { type: { type: "string" }, title: { type: "string" }, status: { type: "integer" }, detail: { type: "string" } } },
         },
       },
     },
     async (req, reply) => {
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
       const layerRow = await getLayerBySlug(req.params.slug);
       if (!layerRow) return sendProblem(reply, 404, "not-found", "Layer not found", `No layer with slug ${req.params.slug}`);
       const relevance = (req.body.relevance === "secondary" ? "secondary" : "primary") as "primary" | "secondary";
@@ -814,10 +819,17 @@ export async function registerV1Routes(app: FastifyInstance) {
         tags: ["Layers"],
         summary: "Remove threat association from layer",
         params: { type: "object", required: ["slug", "threatId"], properties: { slug: { type: "string" }, threatId: { type: "string" } } },
-        response: { 204: { type: "null" } },
+        response: {
+          204: { type: "null" },
+          401: { type: "object", required: ["error"], properties: { error: { type: "string" } } },
+        },
       },
     },
     async (req, reply) => {
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
       await removeThreatFromLayer(req.params.slug, req.params.threatId);
       reply.code(204);
     }
@@ -911,12 +923,24 @@ export async function registerV1Routes(app: FastifyInstance) {
               },
             },
           },
+          400: { type: "object", required: ["type", "title", "status"], properties: { type: { type: "string" }, title: { type: "string" }, status: { type: "integer" }, detail: { type: "string" } } },
+          401: { type: "object", required: ["error"], properties: { error: { type: "string" } } },
           503: { type: "object", required: ["type", "title", "status"], properties: { type: { type: "string" }, title: { type: "string" }, status: { type: "integer" }, detail: { type: "string" } } },
           404: { type: "object", required: ["type", "title", "status"], properties: { type: { type: "string" }, title: { type: "string" }, status: { type: "integer" }, detail: { type: "string" } } },
         },
       },
     },
     async (req, reply) => {
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+      if (!req.body.stackSlug?.trim()) {
+        return sendProblem(reply, 400, "missing-field", "Missing stackSlug", "stackSlug is required");
+      }
+      if (!Array.isArray(req.body.layerSlugs) || req.body.layerSlugs.length === 0) {
+        return sendProblem(reply, 400, "missing-field", "Missing layerSlugs", "layerSlugs must be a non-empty array");
+      }
       try {
         const result = await runSummarizer({
           stackSlug: req.body.stackSlug,
@@ -997,9 +1021,16 @@ export async function registerV1Routes(app: FastifyInstance) {
             layerSlug: { type: "string" },
           },
         },
+        response: {
+          401: { type: "object", required: ["error"], properties: { error: { type: "string" } } },
+        },
       },
     },
-    async (req) => {
+    async (req, reply) => {
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
       const result = await runSummarizerForLayer(req.body.stackSlug, req.body.layerSlug);
       return result;
     }
@@ -1018,9 +1049,18 @@ export async function registerV1Routes(app: FastifyInstance) {
             mode: { type: "string", enum: ["empty", "stale", "all"] },
           },
         },
+        response: {
+          401: { type: "object", required: ["error"], properties: { error: { type: "string" } } },
+        },
       },
     },
-    async (req) => executeBulkGuardrailGeneration(req.body.mode)
+    async (req, reply) => {
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+      return executeBulkGuardrailGeneration(req.body.mode);
+    }
   );
 
   // ─── LLM config endpoint ─────────────────────────────────────────────────────
@@ -1033,7 +1073,14 @@ export async function registerV1Routes(app: FastifyInstance) {
         summary: "Current LLM provider, model, feature flags, and connectivity status",
       },
     },
-    async () => {
+    async (request, reply) => {
+      // Admin-only endpoint — requires Bearer token matching ADMIN_API_TOKEN env var.
+      const authHeader = request.headers.authorization;
+      const adminToken = process.env.ADMIN_API_TOKEN;
+      if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+
       const provider = detectProvider();
       const model =
         process.env.FEATURE_CERTIFIED_SUMMARIES === "true" ? "claude-opus-4-7" : "claude-sonnet-4-6";
@@ -1046,6 +1093,7 @@ export async function registerV1Routes(app: FastifyInstance) {
         const { createLLMClient } = await import("../services/summarizer/llm-client.js");
         const client = await createLLMClient();
         const start = Date.now();
+        // NOTE: Consider caching the connectivity check result for 60s to avoid unnecessary API calls.
         await client.messages.create({
           model,
           max_tokens: 1,

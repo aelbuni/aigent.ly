@@ -6,7 +6,7 @@
 
 import "dotenv/config";
 import { db, layer, owaspLayerMapping, policyTemplate, policyTemplateStack, rule, ruleLayerMap, ruleStack, sourceLayerMapping, stack, stackSubmission, summarizedGuardrail, syncLog, threat, threatLayer, threatStack, user } from "@/lib/db";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and } from "drizzle-orm";
 
 // ─── Test harness ────────────────────────────────────────────────────────────
 let passed = 0;
@@ -134,7 +134,6 @@ async function testLayers() {
   await test("layers", "createLayer – insert custom layer", async () => {
     const slug = `test-layer-${Date.now()}`;
     const [created] = await db.insert(layer).values({
-      publicId: `layer_${slug}`,
       slug,
       name: "Test Layer (CRUD)",
       description: "Test layer for CRUD testing",
@@ -406,14 +405,10 @@ async function testSubmissions() {
   await test("submissions", "updateOnboardingStep – toggle progress key", async () => {
     if (!testSubmissionId) return;
     // reset to onboarding first
-    await db.update(stackSubmission).set({ status: "onboarding", onboardingProgress: { stack_record_created: false, logo_uploaded: false } }).where(eq(stackSubmission.id, testSubmissionId));
-    const [row] = await db.select({ progress: stackSubmission.onboardingProgress }).from(stackSubmission).where(eq(stackSubmission.id, testSubmissionId));
-    const current = (row.progress ?? {}) as Record<string, boolean>;
-    current["stack_record_created"] = true;
-    await db.update(stackSubmission).set({ onboardingProgress: current }).where(eq(stackSubmission.id, testSubmissionId));
-    const [updated] = await db.select({ progress: stackSubmission.onboardingProgress }).from(stackSubmission).where(eq(stackSubmission.id, testSubmissionId));
-    const prog = updated.progress as Record<string, boolean>;
-    assert(prog["stack_record_created"] === true, "step toggled to true");
+    await db.update(stackSubmission).set({ status: "onboarding", stepStackCreated: false, stepLogoUploaded: false }).where(eq(stackSubmission.id, testSubmissionId));
+    await db.update(stackSubmission).set({ stepStackCreated: true }).where(eq(stackSubmission.id, testSubmissionId));
+    const [updated] = await db.select({ stepStackCreated: stackSubmission.stepStackCreated }).from(stackSubmission).where(eq(stackSubmission.id, testSubmissionId));
+    assert(updated.stepStackCreated === true, "step toggled to true");
   });
 
   await test("submissions", "approveAndOnboard – create linked stack", async () => {
@@ -616,17 +611,17 @@ async function testSchemaIntegrity() {
     if (row) assert(typeof row.id === "number", "stack.id is number");
   });
 
-  await test("schema", "layer table – UUID PK, publicId unique", async () => {
-    const [row] = await db.select({ id: layer.id, publicId: layer.publicId }).from(layer).limit(1);
+  await test("schema", "layer table – UUID PK, slug unique", async () => {
+    const [row] = await db.select({ id: layer.id, slug: layer.slug }).from(layer).limit(1);
     if (row) {
       assert(typeof row.id === "string" && row.id.includes("-"), "layer.id is UUID");
-      assert(typeof row.publicId === "string", "publicId is string");
+      assert(typeof row.slug === "string", "slug is string");
     }
   });
 
-  await test("schema", "stackSubmission – onboardingProgress is jsonb", async () => {
-    const [row] = await db.select({ onboardingProgress: stackSubmission.onboardingProgress }).from(stackSubmission).limit(1);
-    if (row) assert(typeof row.onboardingProgress === "object", "onboardingProgress is object");
+  await test("schema", "stackSubmission – typed onboarding step columns", async () => {
+    const [row] = await db.select({ stepStackCreated: stackSubmission.stepStackCreated }).from(stackSubmission).limit(1);
+    if (row) assert(typeof row.stepStackCreated === "boolean", "stepStackCreated is boolean");
   });
 
   await test("schema", "ruleLayerMap – composite PK (ruleId, layerId)", async () => {
