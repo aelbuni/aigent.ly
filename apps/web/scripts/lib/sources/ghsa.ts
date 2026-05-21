@@ -36,11 +36,14 @@ export async function fetchGhsaForEcosystem(
 
   const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
   const results: GhsaAdvisory[] = [];
+
+  // GitHub API requires separate requests per severity value (comma-separated is invalid)
+  for (const severity of ["critical", "high"]) {
   let page = 1;
 
   while (true) {
     const url =
-      `${GHSA_BASE}?ecosystem=${ecosystem}&severity=critical,high` +
+      `${GHSA_BASE}?ecosystem=${ecosystem}&severity=${severity}` +
       `&per_page=100&page=${page}&updated_after=${since}`;
 
     const res = await fetch(url, { headers });
@@ -54,6 +57,7 @@ export async function fetchGhsaForEcosystem(
     page++;
     await sleep(200);
   }
+  } // end severity loop
 
   return results;
 }
