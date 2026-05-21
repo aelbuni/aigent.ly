@@ -105,9 +105,11 @@ function feedCardBorderClass(sev: string | null | undefined) {
 }
 
 function mergeDbThreats(api: Threat[], db: Threat[]): Threat[] {
+  // DB threats are pre-sorted newest-first; put them first so the merge
+  // preserves that order. API threats fill in any gaps not covered by DB.
   const seen = new Set<string>();
   const out: Threat[] = [];
-  for (const t of [...api, ...db]) {
+  for (const t of [...db, ...api]) {
     if (seen.has(t.publicId)) continue;
     seen.add(t.publicId);
     out.push(t);
