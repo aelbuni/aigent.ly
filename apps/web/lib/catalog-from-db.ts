@@ -555,7 +555,7 @@ export async function listThreatsOnLaunchStacksFromDb(): Promise<Threat[]> {
     .innerJoin(threatStack, eq(threatStack.threatId, threat.publicId))
     .innerJoin(stack, eq(stack.id, threatStack.stackId))
     .where(eq(stack.catalogStatus, "launch"))
-    .orderBy(desc(threat.publishedAt), desc(threat.publicId));
+    .orderBy(sql`${threat.publishedAt} DESC NULLS LAST`, desc(threat.publicId));
 
   const seen = new Set<string>();
   const out: Threat[] = [];
