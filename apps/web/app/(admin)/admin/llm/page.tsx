@@ -44,6 +44,22 @@ export default async function LLMConfigPage() {
         </div>
       )}
 
+      {cfg.provider === "bedrock" && (!hasAwsKey || !hasAwsSecret) && hasAnthropicKey && (
+        <div className="rounded-[10px] border border-[#FFA70B]/40 bg-[#FFA70B]/5 p-4">
+          <p className="text-sm font-medium text-[#FFA70B]">
+            ⚠ Bedrock credentials incomplete. Switch to Anthropic API (key detected) to unblock the pipeline.
+          </p>
+          <form action={saveLLMConfig} className="mt-2">
+            <input type="hidden" name="provider" value="anthropic" />
+            <input type="hidden" name="defaultModel" value={cfg.defaultModel} />
+            <input type="hidden" name="summarizerEnabled" value={cfg.summarizerEnabled ? "on" : "off"} />
+            <button type="submit" className="text-sm font-medium text-[#3C50E0] underline">
+              Switch to Anthropic API →
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* ── Provider ── */}
       <section className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark space-y-4">
         <h2 className="text-dark font-semibold dark:text-white">Provider</h2>

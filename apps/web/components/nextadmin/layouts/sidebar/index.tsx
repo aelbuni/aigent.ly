@@ -9,7 +9,11 @@ import { ArrowLeftIcon, ChevronUp } from "./icons";
 import { MenuItem } from "./menu-item";
 import { useSidebarContext } from "./sidebar-context";
 
-export function Sidebar() {
+export function Sidebar({
+  badgeCounts = {},
+}: {
+  badgeCounts?: Record<string, number>;
+}) {
   const pathname = usePathname();
   const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -143,6 +147,11 @@ export function Sidebar() {
                               aria-hidden="true"
                             />
                             <span>{item.title}</span>
+                            {item.badge && (badgeCounts[item.badge] ?? 0) > 0 && (
+                              <span className="ml-auto rounded-full bg-[#D34053] px-1.5 py-0.5 text-xs font-medium text-white">
+                                {badgeCounts[item.badge]}
+                              </span>
+                            )}
                           </MenuItem>
                         )}
                       </li>

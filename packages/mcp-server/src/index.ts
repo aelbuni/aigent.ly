@@ -169,6 +169,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   };
 });
 
+// MAINTENANCE REQUIRED: This taxonomy is hardcoded and does not reflect live DB state.
+// When layers are added, renamed, or deactivated in /admin/layers, this array MUST be
+// manually updated here to keep the MCP list_layers tool accurate.
+// TODO: Consider fetching from GET /v1/layers API endpoint to eliminate drift.
+// Last synced with DB: 2026-05-17
 const LAYER_TAXONOMY = [
   { slug: "auth_session",       name: "Authentication & Session",        tier: "core",          concern: "preventing authentication bypass, session fixation, and credential exposure" },
   { slug: "authz_access",       name: "Authorization & Access Control",  tier: "core",          concern: "enforcing ownership checks, RLS, and privilege boundaries" },

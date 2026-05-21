@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
 import { AdminShell } from "@/components/nextadmin/admin-shell";
+import { getAdminOverviewStats } from "@/lib/admin-queries";
 import { redirect } from "next/navigation";
 
 import { AdminProviders } from "./_components/admin-providers";
@@ -28,10 +29,16 @@ export default async function AdminLayout({
 
   const effectiveSession = session ?? { user: { name: "Dev", email: "", role: "admin", id: "dev", image: null, emailVerified: null }, expires: "2099-01-01T00:00:00.000Z" };
 
+  const stats = await getAdminOverviewStats();
+  const badgeCounts: Record<string, number> = {
+    pendingSubmissions: stats.pendingSubmissions,
+    stackCount: stats.stackCount,
+  };
+
   return (
     <div className="admin-root min-h-svh">
       <AdminProviders session={effectiveSession}>
-        <AdminShell>{children}</AdminShell>
+        <AdminShell badgeCounts={badgeCounts}>{children}</AdminShell>
       </AdminProviders>
     </div>
   );

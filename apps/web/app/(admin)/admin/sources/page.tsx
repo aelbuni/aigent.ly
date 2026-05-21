@@ -32,6 +32,10 @@ export default async function SourceRoutingPage() {
     return acc;
   }, {} as Record<string, typeof sourceMappings>);
 
+  const distinctSourceCount = SOURCES.filter((src) => bySource[src].length > 0).length;
+  const missingSources = SOURCES.filter((src) => bySource[src].length === 0);
+  const isIncomplete = distinctSourceCount < SOURCES.length;
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -50,24 +54,25 @@ export default async function SourceRoutingPage() {
         }
       />
 
-      {sourceMappings.length === 0 && (
+      {isIncomplete && (
         <div className="flex items-start gap-3 rounded-[10px] border border-[#D34053]/40 bg-[#D34053]/5 p-4">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[#D34053]" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-[#D34053]">
-              No source-layer mappings configured
+              Source routing is incomplete — {missingSources.length} of {SOURCES.length} sources have no layer mappings
             </p>
             <p className="text-dark-6 mt-1 text-sm">
-              Threat layer assignment is disabled. All 7 data sources are unrouted — threats
-              synced from NVD, GHSA, CISA KEV, OSV, and internal sources will not be assigned
-              to any layer. Guardrail generation is blocked for most layers.
+              Threats from these sources will not be assigned to layers during sync:{" "}
+              <span className="font-medium text-[#D34053]">{missingSources.join(", ")}</span>.
+              Guardrail generation is blocked for layers that rely on these sources.
             </p>
-            <div className="mt-3">
-              <DefaultMappingsLoader />
-            </div>
           </div>
         </div>
       )}
+
+      <div className="flex items-center justify-between">
+        <DefaultMappingsLoader />
+      </div>
 
       <div className="space-y-4">
         <h2 className="text-dark text-lg font-semibold dark:text-white">Data sources</h2>

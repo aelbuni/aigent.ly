@@ -11,7 +11,7 @@ import {
   AdminTableHeaderRow,
   AdminTableRow,
 } from "@/components/nextadmin/admin-data-table";
-import { AdminPageHeader } from "@/components/nextadmin/admin-page-header";
+import { AdminPageHeader, AdminPagination } from "@/components/nextadmin/admin-page-header";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
@@ -30,7 +30,7 @@ function StarScore({ score, override }: { score: number; override?: number | nul
   const effective = override ?? score;
   const stars = effective > 0 ? Math.max(1, Math.round(effective / 2)) : 0;
   const colorClass =
-    effective >= 5 ? "text-[#219653]"
+    effective >= 7 ? "text-[#219653]"
     : effective > 0 ? "text-[#FFA70B]"
     : effective === 0 ? "text-[#D34053]"
     : "text-dark-5 opacity-40";
@@ -297,6 +297,12 @@ export default async function GuardrailsPage({
           )}
         </AdminTableBody>
       </AdminDataTable>
+      <AdminPagination
+        page={page}
+        perPage={25}
+        total={total}
+        searchParams={{ stack: stackFilter, layer: layerFilter }}
+      />
     </div>
   );
 }

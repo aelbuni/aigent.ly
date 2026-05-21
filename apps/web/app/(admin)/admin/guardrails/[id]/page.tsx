@@ -17,10 +17,9 @@ function StarScore({ score, override }: { score: number; override?: number | nul
   const effective = override ?? score;
   const stars = effective > 0 ? Math.max(1, Math.round(effective / 2)) : 0;
   const colorClass =
-    effective >= 8 ? "text-emerald-500"
-    : effective >= 5 ? "text-amber-400"
-    : effective > 0 ? "text-red-400"
-    : "text-dark-5 opacity-40";
+    effective >= 7 ? "text-[#219653]"
+    : effective > 0 ? "text-[#FFA70B]"
+    : "text-[#D34053]";
   return (
     <span className={cn("inline-flex items-center gap-0.5 text-xl leading-none", colorClass)} aria-label={`${stars} of 5 stars`}>
       {Array.from({ length: 5 }, (_, i) => (

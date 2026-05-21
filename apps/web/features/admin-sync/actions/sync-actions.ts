@@ -44,6 +44,12 @@ export async function triggerExportCatalog(): Promise<{ ok: boolean; message: st
   return { ok: true, message: "Catalog export queued." };
 }
 
+export async function triggerPublishCatalog(): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  revalidatePath("/admin/sync");
+  return { ok: true, message: "Catalog publish queued. Check sync logs." };
+}
+
 export async function clearZombieRuns(): Promise<{ ok: boolean; count: number }> {
   await requireAdmin();
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);

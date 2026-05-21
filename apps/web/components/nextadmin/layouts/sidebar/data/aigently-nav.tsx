@@ -15,6 +15,7 @@ export const NAV_DATA = adminNavGroups.map((group) => ({
     title: item.title,
     url: item.url,
     icon: lucideNavIcon(item.icon),
+    badge: item.badge,
     items: [] as { title: string; url: string }[],
   })),
 }));

@@ -7,22 +7,11 @@ import {
   updateOnboardingStep,
   updateReviewNotes,
 } from "@/features/admin-submissions/actions/submission-actions";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { AdminStatusPill } from "@/components/nextadmin/admin-data-table";
+import { AdminPageHeader } from "@/components/nextadmin/admin-page-header";
 import { CheckCircle, Circle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "destructive",
-  under_review: "default",
-  approved: "secondary",
-  rejected: "outline",
-  onboarding: "default",
-  live: "secondary",
-};
 
 const ONBOARDING_STEPS: { key: string; label: string }[] = [
   { key: "stack_record_created", label: "Stack record created" },
@@ -50,58 +39,88 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{sub.proposedName}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant={STATUS_VARIANTS[sub.status] ?? "outline"}>{sub.status.replace(/_/g, " ")}</Badge>
-            <span className="text-sm text-muted-foreground">{sub.proposedSlug}</span>
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {sub.status === "pending" && (
-            <form action={startReview.bind(null, id)}>
-              <Button type="submit" variant="outline" size="sm">Start Review</Button>
-            </form>
-          )}
-          {(sub.status === "pending" || sub.status === "under_review") && (
-            <>
-              <form action={approveAndOnboard.bind(null, id)}>
-                <Button type="submit" size="sm">Approve & Onboard</Button>
-              </form>
-              <form action={async () => { "use server"; await rejectSubmission(id, ""); }}>
-                <Button type="submit" variant="destructive" size="sm">Reject</Button>
-              </form>
-            </>
-          )}
-          {sub.linkedStackId && (
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/stacks/${sub.linkedStackId}`}>
-                View Stack <ExternalLink className="ml-1 h-3 w-3" />
+      <AdminPageHeader
+        title={sub.proposedName}
+        description={sub.proposedSlug}
+        action={
+          <div className="flex gap-2 flex-wrap items-center">
+            <AdminStatusPill status={sub.status} />
+            {sub.linkedStackId && (
+              <Link
+                href={`/admin/stacks/${sub.linkedStackId}`}
+                className="inline-flex items-center gap-1 rounded-sm border border-stroke bg-white px-3 py-1.5 text-sm font-medium text-dark hover:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              >
+                View Stack <ExternalLink className="h-3 w-3" />
               </Link>
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        }
+      />
+
+      {/* Action buttons */}
+      <div className="flex gap-2 flex-wrap">
+        {sub.status === "pending" && (
+          <form action={startReview.bind(null, id)}>
+            <button
+              type="submit"
+              className="rounded-sm border border-stroke bg-white px-4 py-2 text-sm font-medium text-dark hover:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            >
+              Start Review
+            </button>
+          </form>
+        )}
+        {(sub.status === "pending" || sub.status === "under_review") && (
+          <form action={approveAndOnboard.bind(null, id)}>
+            <button
+              type="submit"
+              className="rounded-sm bg-[#3C50E0] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Approve &amp; Onboard
+            </button>
+          </form>
+        )}
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Submission Details</CardTitle></CardHeader>
-        <CardContent className="space-y-3 text-sm">
+      {/* Submission Details */}
+      <div className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-dark dark:text-white">Submission Details</h3>
+        </div>
+        <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-3">
-            <div><span className="font-medium text-muted-foreground">Ecosystem</span><p>{sub.ecosystem ?? "—"}</p></div>
-            <div><span className="font-medium text-muted-foreground">Submitted</span><p>{new Date(sub.createdAt).toLocaleDateString()}</p></div>
+            <div>
+              <span className="text-sm font-medium text-dark-6">Ecosystem</span>
+              <p className="mt-0.5 text-dark dark:text-white">{sub.ecosystem ?? "—"}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-dark-6">Submitted</span>
+              <p className="mt-0.5 text-dark dark:text-white">{new Date(sub.createdAt).toLocaleDateString()}</p>
+            </div>
           </div>
-          <div><span className="font-medium text-muted-foreground">Description</span><p className="mt-1 text-muted-foreground">{sub.description}</p></div>
+          <div>
+            <span className="text-sm font-medium text-dark-6">Description</span>
+            <p className="mt-1 text-dark-6">{sub.description}</p>
+          </div>
           {sub.githubUrl && (
             <div>
-              <span className="font-medium text-muted-foreground">GitHub</span>
-              <a href={sub.githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline mt-1">
+              <span className="text-sm font-medium text-dark-6">GitHub</span>
+              <a
+                href={sub.githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 flex items-center gap-1 text-[#3C50E0] hover:underline"
+              >
                 {sub.githubUrl} <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           )}
-          {sub.additionalInfo && <div><span className="font-medium text-muted-foreground">Additional Info</span><p className="mt-1 text-muted-foreground">{sub.additionalInfo}</p></div>}
-          <Separator />
+          {sub.additionalInfo && (
+            <div>
+              <span className="text-sm font-medium text-dark-6">Additional Info</span>
+              <p className="mt-1 text-dark-6">{sub.additionalInfo}</p>
+            </div>
+          )}
+          <hr className="border-stroke dark:border-dark-3 my-4" />
           {submitter && (
             <div className="flex items-center gap-2">
               {submitter.image && (
@@ -114,53 +133,101 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
                 />
               )}
               <div>
-                <p className="font-medium">{submitter.name}</p>
-                <p className="text-xs text-muted-foreground">{submitter.email}</p>
+                <p className="font-medium text-dark dark:text-white">{submitter.name}</p>
+                <p className="text-xs text-dark-6">{submitter.email}</p>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Review notes */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Review Notes</CardTitle></CardHeader>
-        <CardContent>
-          <form action={async (fd: FormData) => { "use server"; await updateReviewNotes(id, fd.get("notes") as string); }}>
+      <div className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-dark dark:text-white">Review Notes</h3>
+        </div>
+        <form action={async (fd: FormData) => { "use server"; await updateReviewNotes(id, fd.get("notes") as string); }}>
+          <textarea
+            name="notes"
+            defaultValue={sub.reviewNotes ?? ""}
+            className="w-full min-h-[100px] rounded-md border border-stroke bg-white px-3 py-2 text-sm resize-y dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            placeholder="Add review notes…"
+          />
+          <button
+            type="submit"
+            className="mt-2 rounded-sm bg-[#3C50E0] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            Save Notes
+          </button>
+        </form>
+      </div>
+
+      {/* Reject form — only shown while submission is actionable */}
+      {(sub.status === "pending" || sub.status === "under_review") && (
+        <div className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-dark dark:text-white">Reject Submission</h3>
+          </div>
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const reason = (formData.get("rejectionReason") as string) ?? "";
+              await rejectSubmission(id, reason);
+            }}
+          >
+            <label className="text-sm font-medium text-dark-6">
+              Rejection reason (optional)
+            </label>
             <textarea
-              name="notes"
-              defaultValue={sub.reviewNotes ?? ""}
-              className="w-full min-h-[100px] rounded-md border bg-background px-3 py-2 text-sm resize-y"
-              placeholder="Add review notes…"
+              name="rejectionReason"
+              className="mt-1 w-full rounded-md border border-stroke bg-white p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+              rows={2}
+              placeholder="Explain why this submission is rejected…"
             />
-            <Button type="submit" size="sm" className="mt-2">Save Notes</Button>
+            <button
+              type="submit"
+              className="mt-2 rounded-sm bg-[#D34053] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Reject
+            </button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* Onboarding progress */}
       {["onboarding", "live", "approved"].includes(sub.status) && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Onboarding Progress</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+        <div className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-dark dark:text-white">Onboarding Progress</h3>
+          </div>
+          <div className="space-y-2">
             {ONBOARDING_STEPS.map((step) => {
               const done = progress[step.key] === true;
               return (
                 <div key={step.key} className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-sm">
-                    {done ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                    <span className={done ? "line-through text-muted-foreground" : ""}>{step.label}</span>
+                    {done ? (
+                      <CheckCircle className="h-4 w-4 text-[#219653]" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-dark-6" />
+                    )}
+                    <span className={done ? "line-through text-dark-6" : "text-dark dark:text-white"}>
+                      {step.label}
+                    </span>
                   </div>
                   <form action={async () => { "use server"; await updateOnboardingStep(id, step.key, !done); }}>
-                    <Button type="submit" variant="ghost" size="sm" className="h-7 text-xs">
+                    <button
+                      type="submit"
+                      className="h-7 rounded-sm border border-stroke bg-white px-2.5 text-xs font-medium text-dark hover:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                    >
                       {done ? "Undo" : "Mark done"}
-                    </Button>
+                    </button>
                   </form>
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

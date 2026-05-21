@@ -3,7 +3,10 @@ import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const ADMIN_BYPASS = process.env.ADMIN_BYPASS === "true";
+// ADMIN_BYPASS is explicitly forbidden in production — NODE_ENV guard is intentional.
+const ADMIN_BYPASS =
+  process.env.ADMIN_BYPASS === "true" &&
+  process.env.NODE_ENV !== "production";
 
 /**
  * Admin authorization runs in `app/(admin)/layout.tsx` via `auth()` from `@/auth`

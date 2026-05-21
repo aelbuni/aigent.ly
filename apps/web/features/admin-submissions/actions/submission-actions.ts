@@ -28,6 +28,16 @@ export async function approveAndOnboard(id: string) {
   const sub = rows[0];
   if (!sub) return;
 
+  // Idempotency guard: bail out if already approved or linked to a stack
+  if (sub.linkedStackId) {
+    revalidatePath("/admin/submissions");
+    return; // Already approved and linked — idempotent
+  }
+  if (sub.status === "onboarding" || sub.status === "live") {
+    revalidatePath("/admin/submissions");
+    return; // Already past approval stage
+  }
+
   const [newStack] = await db
     .insert(stack)
     .values({

@@ -19,9 +19,9 @@ import { RegenButton } from "./_regen-button";
 function ScoreBadge({ score, override }: { score: number; override?: number | null }) {
   const display = override ?? score;
   const colorClass =
-    display >= 8 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-    : display >= 5 ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-    : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300";
+    display >= 7 ? "bg-[#219653]/10 text-[#219653]"
+    : display > 0 ? "bg-[#FFA70B]/10 text-[#FFA70B]"
+    : "bg-[#D34053]/10 text-[#D34053]";
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", colorClass)}>
       {display}/10
@@ -38,7 +38,7 @@ function CoverageBar({ covered, total }: { covered: number; total: number }) {
     <div className="flex items-center gap-2">
       <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-2 dark:bg-dark-2">
         <div
-          className={cn("h-full rounded-full transition-all", pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-400")}
+          className={cn("h-full rounded-full transition-all", pct >= 80 ? "bg-[#219653]" : pct >= 50 ? "bg-[#FFA70B]" : "bg-[#D34053]")}
           style={{ width: `${pct}%` }}
         />
       </div>

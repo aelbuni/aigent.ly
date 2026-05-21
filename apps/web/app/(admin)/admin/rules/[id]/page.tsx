@@ -1,6 +1,7 @@
 import { getRuleById } from "@/lib/admin-queries";
-import { updateRule, assignRuleLayers, assignRuleStacks } from "@/features/admin-rules/actions/rule-actions";
+import { updateRule, assignRuleStacks, assignRuleLayers } from "@/features/admin-rules/actions/rule-actions";
 import { listLayers } from "@/lib/admin-queries";
+import { LayersPanel } from "@/components/admin-rules/LayersPanel";
 import { db, stack } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

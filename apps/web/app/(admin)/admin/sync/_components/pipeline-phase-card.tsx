@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -40,11 +40,15 @@ export function PipelinePhaseCard({
   triggerLabel = "Run",
 }: PipelinePhaseCardProps) {
   const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   function handleTrigger() {
     if (!triggerAction) return;
+    if (!window.confirm(`Trigger "${phase}"? This will run the pipeline phase.`)) return;
     startTransition(async () => {
-      await triggerAction();
+      const res = await triggerAction();
+      setResult(res);
+      setTimeout(() => setResult(null), 5000);
     });
   }
 
@@ -90,6 +94,11 @@ export function PipelinePhaseCard({
       )}
       {lastRunLabel && (
         <p className="text-xs text-dark-6">{lastRunLabel}</p>
+      )}
+      {result && (
+        <p className={`mt-2 text-xs font-medium ${result.ok ? "text-[#219653]" : "text-[#D34053]"}`}>
+          {result.message}
+        </p>
       )}
     </div>
   );

@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "npm run dev -w web",
+    "dev": "npm run dev -w api & npm run dev -w web",
     "dev:api": "npm run dev -w api",
     "build": "npm run build -w web && npm run build -w api",
     "start": "npm run start -w web",

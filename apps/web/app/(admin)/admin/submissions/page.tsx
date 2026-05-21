@@ -13,6 +13,7 @@ import {
 } from "@/components/nextadmin/admin-data-table";
 import {
   AdminPageHeader,
+  AdminPagination,
   AdminSearchForm,
   AdminSearchInput,
   AdminSearchSubmit,
@@ -104,6 +105,13 @@ export default async function SubmissionsPage({
           )}
         </AdminTableBody>
       </AdminDataTable>
+
+      <AdminPagination
+        page={page}
+        perPage={20}
+        total={total}
+        searchParams={{ status: params.status, search: params.search }}
+      />
     </div>
   );
 }

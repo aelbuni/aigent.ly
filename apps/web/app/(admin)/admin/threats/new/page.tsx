@@ -1,5 +1,6 @@
 import { createThreat } from "@/features/admin-threats/actions/threat-actions";
 import { listLayers } from "@/lib/admin-queries";
+import { JsonTextarea } from "@/components/admin-threats/JsonTextarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -82,8 +83,13 @@ export default async function NewThreatPage() {
               <textarea id="description" name="description" className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm resize-y" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="aiAmplification">AI Amplification Narrative</Label>
-              <textarea id="aiAmplification" name="aiAmplification" className="w-full min-h-[60px] rounded-md border bg-background px-3 py-2 text-sm resize-y" placeholder="How AI coding tools amplify this risk…" />
+              <Label htmlFor="aiAmplification">AI Amplification (JSON object)</Label>
+              <JsonTextarea
+                name="aiAmplification"
+                rows={8}
+                placeholder={`{\n  "always": ["Always validate inputs", "Always use parameterized queries"],\n  "never": ["Never concatenate user input into SQL", "Never trust client-supplied data"],\n  "narrative": "Describe how AI coding tools amplify this risk..."\n}`}
+              />
+              <p className="text-xs text-dark-6 mt-1">Must be valid JSON. Leave empty to let the pipeline auto-populate.</p>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="isActivelyExploited" name="isActivelyExploited" />

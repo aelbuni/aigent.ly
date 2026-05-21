@@ -23,7 +23,6 @@ const ruleSchema = z.object({
   dateAdded: z.string(),
   lastUpdated: z.string(),
   author: z.string().min(1),
-  complexity: z.string().optional(),
   ruleType: z.enum(["pattern", "deps", "config", "runtime"]),
   bodyMdx: z.string().optional(),
   summaryMdx: z.string().optional(),

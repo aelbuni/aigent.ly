@@ -17,6 +17,7 @@ import {
   triggerSummarizeRules,
   triggerSummarizeLayers,
   triggerExportCatalog,
+  triggerPublishCatalog,
 } from "@/features/admin-sync/actions/sync-actions";
 import { SnapshotPanel } from "@/features/admin-sync/components/snapshot-panel";
 import {
@@ -83,7 +84,7 @@ export default async function SyncPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
           <PipelinePhaseCard
             phase="1. Sync Threats"
             description="Fetch CVEs from NVD, GHSA, CISA KEV, OSV"
@@ -168,11 +169,19 @@ export default async function SyncPage({
           />
           <PipelinePhaseCard
             phase="6. Export Catalog"
-            description="Commit JSON snapshots to aigently-catalog repo"
+            description="Write JSON snapshots to disk for the aigently-catalog repo"
             status="idle"
             metric="Manual trigger only"
             triggerAction={triggerExportCatalog}
             triggerLabel="Export Now"
+          />
+          <PipelinePhaseCard
+            phase="7. Publish Catalog"
+            description="Commits and pushes the JSON snapshot to the aigently-catalog repo."
+            status="idle"
+            metric="Manual trigger only"
+            triggerAction={triggerPublishCatalog}
+            triggerLabel="Publish"
           />
         </div>
 
@@ -196,11 +205,12 @@ export default async function SyncPage({
             <AdminTableHead>Run</AdminTableHead>
             <AdminTableHead>Coverage</AdminTableHead>
             <AdminTableHead>Status</AdminTableHead>
+            <AdminTableHead>Details</AdminTableHead>
           </AdminTableHeaderRow>
         </AdminTableHeader>
         <AdminTableBody>
           {rows.length === 0 ? (
-            <AdminEmptyState colSpan={3} message="No sync logs yet." />
+            <AdminEmptyState colSpan={4} message="No sync logs yet." />
           ) : (
             rows.map((log) => (
               <AdminTableRow key={log.id}>
@@ -221,6 +231,17 @@ export default async function SyncPage({
                 </AdminTableCell>
                 <AdminTableCell>
                   <AdminStatusPill status={log.status} />
+                </AdminTableCell>
+                <AdminTableCell>
+                  {log.phaseSummary &&
+                  typeof log.phaseSummary === "object" &&
+                  Object.keys(log.phaseSummary).length > 0 ? (
+                    <pre className="max-w-xs overflow-auto whitespace-pre-wrap font-mono text-xs text-dark dark:text-white">
+                      {JSON.stringify(log.phaseSummary, null, 2)}
+                    </pre>
+                  ) : (
+                    <span className="text-xs text-dark-6">—</span>
+                  )}
                 </AdminTableCell>
               </AdminTableRow>
             ))

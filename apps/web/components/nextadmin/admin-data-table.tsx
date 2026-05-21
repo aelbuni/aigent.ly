@@ -145,6 +145,8 @@ const STATUS_PILL_CLASSES: Record<string, string> = {
   done: "bg-[#219653]/8 text-[#219653]",
   low: "bg-[#219653]/8 text-[#219653]",
   active: "bg-[#219653]/8 text-[#219653]",
+  success: "bg-[#219653]/10 text-[#219653]",
+  failed: "bg-[#D34053]/10 text-[#D34053]",
   unpaid: "bg-[#D34053]/8 text-[#D34053]",
   rejected: "bg-[#D34053]/8 text-[#D34053]",
   critical: "bg-[#D34053]/8 text-[#D34053]",
