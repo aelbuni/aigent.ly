@@ -13,6 +13,8 @@ export type RiskRow = {
   description: string;
   /** Tailwind left border color token */
   borderAccent: "border-l-error" | "border-l-tertiary-container";
+  /** Optional direct threat link — links to `/threats?q=...` if set */
+  threatHref?: string;
 };
 
 export type CoverageRow = { label: string; pct: number; barClass: string };

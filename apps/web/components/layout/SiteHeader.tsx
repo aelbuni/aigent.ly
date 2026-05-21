@@ -10,7 +10,6 @@ const nav = [
   { href: "/threats", label: "Threats" },
   { href: "/stacks", label: "Stacks" },
   { href: "/layers", label: "Layers" },
-  { href: "/news", label: "News" },
   { href: "/learn", label: "Learn" },
 ] as const;
 
@@ -56,7 +55,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-4">
           <a
             className="hidden font-sans text-sm tracking-tight text-slate-500 transition-colors hover:text-indigo-600 md:block"
-            href="https://github.com/"
+            href="https://github.com/aelbuni/aigently-catalog"
             target="_blank"
             rel="noreferrer"
           >
@@ -115,7 +114,7 @@ export function SiteHeader() {
           <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-6">
             <a
               className="text-base font-medium text-slate-500 transition-colors hover:text-indigo-600"
-              href="https://github.com/"
+              href="https://github.com/aelbuni/aigently-catalog"
               target="_blank"
               rel="noreferrer"
             >

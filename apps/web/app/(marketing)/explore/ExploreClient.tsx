@@ -63,11 +63,27 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
     startTransition(() => router.replace(`/explore?${params.toString()}`, { scroll: false }));
   }
 
+  // Map stack slugs (from URL params) to partial name hints for matching against card.stacks display names
+  const STACK_SLUG_TO_HINT: Record<string, string> = {
+    nextjs: "next",
+    express: "express",
+    fastapi: "fastapi",
+    nestjs: "nestjs",
+    nuxt: "nuxt",
+    "react-spa": "react",
+    django: "django",
+    rails: "rails",
+    go: "go",
+    ios: "ios",
+    android: "android",
+  };
+
   const filteredCards = useMemo(() => {
     let cards = allCards;
     if (activeStack) {
+      const hint = STACK_SLUG_TO_HINT[activeStack] ?? activeStack;
       cards = cards.filter((c) =>
-        c.stacks.some((s) => s.toLowerCase().includes(activeStack.toLowerCase()))
+        c.stacks.some((s) => s.toLowerCase().includes(hint.toLowerCase()))
       );
     }
     return filterDirectoryCards(cards, {

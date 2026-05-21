@@ -96,12 +96,12 @@ export const STAT_TILES = [
     footnote: "Replaced at runtime from the catalog database after seed.",
   },
   {
-    value: "6",
-    label: "Launch stacks",
-    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA — each with a certified rule.",
+    value: "11",
+    label: "Stacks in catalog",
+    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA, Django, Rails, Go, iOS, Android.",
   },
   {
-    value: "6",
+    value: "12",
     label: "Certified rules",
     footnote: "Each rule maps to real CVE rows via rule_threat_map.",
   },

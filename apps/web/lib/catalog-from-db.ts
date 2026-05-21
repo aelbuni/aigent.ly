@@ -34,9 +34,10 @@ type Threat = components["schemas"]["Threat"];
 // across multiple .select() calls.
 // ---------------------------------------------------------------------------
 const weeklyUsesSubquery = sql<number>`(
-  SELECT COALESCE(SUM(wu.total_copies), 0)::int
-  FROM rule_weekly_usage AS wu
-  WHERE wu.rule_id = ${rule.id}
+  SELECT COALESCE(SUM(ud.copy_count), 0)::int
+  FROM rule_usage_daily AS ud
+  WHERE ud.rule_id = ${rule.id}
+    AND ud.bucket_date >= CURRENT_DATE - INTERVAL '7 days'
 )`.as("weeklyUses");
 
 // ---------------------------------------------------------------------------
@@ -554,7 +555,7 @@ export async function listThreatsOnLaunchStacksFromDb(): Promise<Threat[]> {
     .innerJoin(threatStack, eq(threatStack.threatId, threat.publicId))
     .innerJoin(stack, eq(stack.id, threatStack.stackId))
     .where(eq(stack.catalogStatus, "launch"))
-    .orderBy(asc(threat.publicId));
+    .orderBy(desc(threat.publishedAt), desc(threat.publicId));
 
   const seen = new Set<string>();
   const out: Threat[] = [];
@@ -643,13 +644,13 @@ export async function listLayersWithStatsFromDb(): Promise<LayerWithStats[]> {
       isActive: layer.isActive,
       sortOrder: layer.sortOrder,
       ruleCount: sql<number>`(
-        SELECT COUNT(DISTINCT rlm.rule_id)::int FROM rule_layer_map rlm WHERE rlm.layer_id = ${layer.id}
+        SELECT COUNT(DISTINCT rlm.rule_id)::int FROM rule_layer_map rlm WHERE rlm.layer_id = "layer"."id"
       )`.as("ruleCount"),
       threatCount: sql<number>`(
-        SELECT COUNT(*)::int FROM threat_layer tl WHERE tl.layer_id = ${layer.id}
+        SELECT COUNT(*)::int FROM threat_layer tl WHERE tl.layer_id = "layer"."id"
       )`.as("threatCount"),
       stackCount: sql<number>`(
-        SELECT COUNT(DISTINCT rs.stack_id)::int FROM rule_layer_map rlm JOIN rule_stack rs ON rs.rule_id = rlm.rule_id WHERE rlm.layer_id = ${layer.id}
+        SELECT COUNT(DISTINCT rs.stack_id)::int FROM rule_layer_map rlm JOIN rule_stack rs ON rs.rule_id = rlm.rule_id WHERE rlm.layer_id = "layer"."id"
       )`.as("stackCount"),
     })
     .from(layer)

@@ -230,7 +230,7 @@ export default async function StackOverviewPage({
               {overview.risks.map((risk) => (
                 <Link
                   key={risk.title}
-                  href={rulesHref}
+                  href={risk.threatHref ?? `/threats?q=${encodeURIComponent(risk.title)}`}
                   className={`risk-card-hover group flex gap-4 border border-outline-variant border-l-4 bg-surface-container-lowest p-4 transition-all ${risk.borderAccent}`}
                 >
                   <div className="min-w-0 flex-1">

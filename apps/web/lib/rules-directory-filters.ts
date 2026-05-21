@@ -48,8 +48,28 @@ export function filterDirectoryCards(
     }
 
     if (layerFilter.length > 0) {
-      const matches = layerFilter.some((slug) => cardLayerSlugs.includes(slug));
-      if (!matches) return false;
+      // Primary: match against DB-loaded layer slugs
+      const slugMatch = layerFilter.some((slug) => cardLayerSlugs.includes(slug));
+      if (slugMatch) {
+        // matched — continue to other filters
+      } else if (cardLayerSlugs.length === 0) {
+        // Fallback: card has no layer metadata loaded — use text heuristic so
+        // the explore page works even when loadDirectoryFilterMeta fails silently
+        const LAYER_TEXT: Record<string, RegExp> = {
+          auth_session: /auth|session|login|credential|jwt|token|oauth|sign.?in/i,
+          authz_access: /authoriz|rbac|permission|access.?control|idor|privilege/i,
+          input_validation: /inject|xss|sanitiz|validat|escape|csrf|sql/i,
+          secrets_credentials: /secret|api.?key|env|credential|hardcod|leak/i,
+          dependency_supply: /depend|supply.?chain|package|npm|audit|outdated|ghsa/i,
+          data_privacy: /pii|privacy|gdpr|encrypt|personal.?data|compliance/i,
+          observability: /log|observ|monitor|alert|trace|incident/i,
+          ai_safety: /prompt.?inject|llm|ai.?safety|agent|mcp|jailbreak/i,
+        };
+        const re = LAYER_TEXT[layerFilter[0]];
+        if (!re || !re.test(hay)) return false;
+      } else {
+        return false;
+      }
     }
 
     if (types.length > 0) {

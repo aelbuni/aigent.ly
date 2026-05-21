@@ -19,26 +19,48 @@ export function SiteFooter() {
             >
               Documentation
             </Link>
-            <a
+            <Link
+              href="/rules"
               className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
-              href="#"
             >
-              API Reference
+              Rules directory
+            </Link>
+          </nav>
+        </div>
+        <div>
+          <h4 className="mb-4 font-mono text-[10px] uppercase text-white">Platform</h4>
+          <nav className="flex flex-col gap-2">
+            <Link
+              href="/stacks"
+              className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
+            >
+              Stacks
+            </Link>
+            <Link
+              href="/threats"
+              className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
+            >
+              Threat feed
+            </Link>
+          </nav>
+        </div>
+        <div>
+          <h4 className="mb-4 font-mono text-[10px] uppercase text-white">Company</h4>
+          <nav className="flex flex-col gap-2">
+            <Link
+              href="/work-with-us"
+              className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
+            >
+              Work with us
+            </Link>
+            <a
+              href="https://github.com/aelbuni/aigently-catalog"
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
+            >
+              Open source ↗
             </a>
-          </nav>
-        </div>
-        <div>
-          <h4 className="mb-4 font-mono text-[10px] uppercase text-white">System</h4>
-          <nav className="flex flex-col gap-2">
-            <span className="font-mono text-[10px] uppercase text-slate-500">Status</span>
-            <span className="font-mono text-[10px] uppercase text-slate-500">Network</span>
-          </nav>
-        </div>
-        <div>
-          <h4 className="mb-4 font-mono text-[10px] uppercase text-white">Legal</h4>
-          <nav className="flex flex-col gap-2">
-            <span className="font-mono text-[10px] uppercase text-slate-500">Privacy</span>
-            <span className="font-mono text-[10px] uppercase text-slate-500">Security</span>
           </nav>
         </div>
       </div>

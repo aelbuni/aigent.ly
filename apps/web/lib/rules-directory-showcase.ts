@@ -135,9 +135,7 @@ export function enrichApiRule(
   const stars = score > 0
     ? (score >= 80 ? 5 : score >= 60 ? 4 : score >= 40 ? 3 : score >= 20 ? 2 : 1)
     : 3 + (h % 3);
-  const usesK = 0.4 + (h % 50) / 10;
-  const usesLabel =
-    rule.weeklyUses > 0 ? formatUsesLabel(rule.weeklyUses) : usesK >= 1 ? `${usesK.toFixed(1)}k` : `${200 + (h % 800)}`;
+  const usesLabel = rule.weeklyUses > 0 ? formatUsesLabel(rule.weeklyUses) : "";
   const hay = `${rule.name} ${rule.description} ${rule.slug}`.toLowerCase();
   const tags: string[] = [];
   if (/-security-patterns-v\d+$/i.test(rule.slug)) tags.push("Patterns");
