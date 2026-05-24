@@ -56,23 +56,13 @@ export default async function StackOverviewPage({
     notFound();
   }
 
+  // Always use DB for the overview — the API omits publishedAt on threat entries,
+  // which we need to show dates on the risk cards.
   let apiOverview: StackOverviewResponse | null = null;
-  if (client) {
-    const ov = await tryInternal(
-      () =>
-        client.GET("/v1/stacks/{stackSlug}/overview", {
-          params: { path: { stackSlug } },
-        }),
-      null
-    );
-    if (ov?.data) apiOverview = ov.data;
-  }
-  if (!apiOverview) {
-    try {
-      apiOverview = await getStackOverviewFromDb(detail.slug);
-    } catch {
-      apiOverview = null;
-    }
+  try {
+    apiOverview = await getStackOverviewFromDb(detail.slug);
+  } catch {
+    apiOverview = null;
   }
 
   const overview = mergeStackOverviewFromApi(detail.slug, apiOverview);
@@ -203,10 +193,10 @@ export default async function StackOverviewPage({
               Browse rules
             </Link>
             <Link
-              href={rulesHref}
+              href={`/composer?stack=${detail.slug}`}
               className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
             >
-              View stack rule
+              Get guardrails →
             </Link>
           </div>
         </div>
@@ -240,6 +230,11 @@ export default async function StackOverviewPage({
                         {risk.severity}
                       </span>
                     </div>
+                    {risk.publishedAt && (
+                      <p className="mb-1 font-mono-label text-xs text-on-surface-variant/60">
+                        {new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(new Date(risk.publishedAt))}
+                      </p>
+                    )}
                     <p className="text-body-sm text-on-surface-variant">{risk.description}</p>
                   </div>
                   <MaterialSymbol name="open_in_new" className="shrink-0 text-outline group-hover:text-primary" />

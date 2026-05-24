@@ -168,11 +168,12 @@ export async function getStackOverviewFromDb(slug: string): Promise<StackOvervie
       severity: threatStack.severity,
       isMitigatedByRules: threatStack.isMitigatedByRules,
       family: threat.family,
+      publishedAt: threat.publishedAt,
     })
     .from(threatStack)
     .innerJoin(threat, eq(threat.publicId, threatStack.threatId))
     .where(eq(threatStack.stackId, s.id))
-    .orderBy(asc(threat.publicId));
+    .orderBy(sql`${threat.publishedAt} DESC NULLS LAST`, asc(threat.publicId));
 
   return {
     id: s.id,

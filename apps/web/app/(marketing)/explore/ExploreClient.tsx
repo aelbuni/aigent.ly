@@ -30,7 +30,7 @@ function getLayerName(l: unknown): string {
 
 function StrengthBar({ score }: { score: number }) {
   const color =
-    score >= 90 ? "bg-emerald-500" : score >= 75 ? "bg-amber-400" : "bg-red-400";
+    score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-400" : "bg-red-400";
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container">
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
@@ -109,7 +109,7 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total rules", value: stats.totalRules },
-          { label: "Avg strength", value: `${stats.avgStrength}%` },
+          { label: "Rule depth", value: stats.avgStrength },
           { label: "Layers covered", value: stats.layersCovered },
           { label: "Stacks covered", value: stats.stacksCovered },
         ].map((s) => (
@@ -328,13 +328,12 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
                     >
                       View rule →
                     </Link>
-                    <button
-                      disabled
-                      title="Summarizer coming soon"
-                      className="rounded-md border border-outline-variant px-3 py-1.5 text-xs text-on-surface-variant opacity-50 cursor-not-allowed"
+                    <Link
+                      href={activeStack ? `/composer?stack=${activeStack}` : "/composer"}
+                      className="rounded-md border border-primary px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
                     >
-                      Generate summary
-                    </button>
+                      Install →
+                    </Link>
                   </div>
                 </div>
               )}

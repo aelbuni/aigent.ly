@@ -15,6 +15,8 @@ export type RiskRow = {
   borderAccent: "border-l-error" | "border-l-tertiary-container";
   /** Optional direct threat link — links to `/threats?q=...` if set */
   threatHref?: string;
+  /** CVE publish date for display — month + year only */
+  publishedAt?: Date | null;
 };
 
 export type CoverageRow = { label: string; pct: number; barClass: string };
@@ -119,7 +121,12 @@ export function getStackOverviewContent(stackSlug: string): StackOverviewContent
   return DEFAULT;
 }
 
-type ApiStackOverview = components["schemas"]["StackOverviewResponse"];
+type ApiThreatEntry = components["schemas"]["StackOverviewResponse"]["threatMatrix"][number] & {
+  publishedAt?: Date | null;
+};
+type ApiStackOverview = Omit<components["schemas"]["StackOverviewResponse"], "threatMatrix"> & {
+  threatMatrix: ApiThreatEntry[];
+};
 
 function mapApiSeverity(s: string): RiskSeverity {
   const u = s.toLowerCase();
@@ -185,6 +192,7 @@ export function mergeStackOverviewFromApi(
             : "Tracked in Threats — align rules and stack coverage.",
           borderAccent:
             t.severity === "critical" ? "border-l-error" : "border-l-tertiary-container",
+          publishedAt: t.publishedAt ?? null,
         }))
       : base.risks;
 
