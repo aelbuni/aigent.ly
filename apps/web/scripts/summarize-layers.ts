@@ -10,14 +10,16 @@ if (!["empty", "stale", "all"].includes(mode)) {
   process.exit(1);
 }
 
-console.log(`summarize:layers — mode=${mode}`);
-
-const { generated, skipped, errors } = await bulkRunSummarizer(mode);
-
-console.log(`Done: generated=${generated} skipped=${skipped} errors=${errors.length}`);
-if (errors.length > 0) {
-  for (const e of errors) console.error(" ✗", e);
-  process.exitCode = 1;
+async function main() {
+  console.log(`summarize:layers — mode=${mode}`);
+  const { generated, skipped, errors } = await bulkRunSummarizer(mode);
+  console.log(`Done: generated=${generated} skipped=${skipped} errors=${errors.length}`);
+  if (errors.length > 0) {
+    for (const e of errors) console.error(" ✗", e);
+    process.exitCode = 1;
+  }
 }
 
-await pool.end();
+main()
+  .catch(err => { console.error("Fatal:", err); process.exitCode = 1; })
+  .finally(() => pool.end());

@@ -14,9 +14,12 @@ export default async function ComposerPage() {
     listLayersWithStatsFromDb().catch(() => []),
   ]);
 
+  // Only show launch stacks — coming_soon stacks have no rules and produce empty output
+  const launchStacks = stacks.filter((s) => s.catalogStatus === "launch");
+
   return (
     <ComposerPageClient
-      initialStacks={stacks}
+      initialStacks={launchStacks}
       initialIdes={ides}
       initialLayers={layerRows}
     />

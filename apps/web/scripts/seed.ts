@@ -449,7 +449,8 @@ async function reconcileRuleForStack(
   ruleId: string,
   stackId: number,
   ideIdBySlug: Map<string, number | undefined>,
-  layerIdBySlug: Map<string, string>
+  layerIdBySlug: Map<string, string>,
+  contentType: "patterns" | "deps" = "patterns"
 ) {
   await db.delete(ruleStack).where(eq(ruleStack.ruleId, ruleId));
   await db.insert(ruleStack).values({ ruleId, stackId });
@@ -478,9 +479,15 @@ async function reconcileRuleForStack(
   }
 
   await db.delete(ruleLayerMap).where(eq(ruleLayerMap.ruleId, ruleId));
-  const authLayerId = layerIdBySlug.get("auth_session");
-  if (authLayerId) {
-    await db.insert(ruleLayerMap).values({ ruleId, layerId: authLayerId }).onConflictDoNothing();
+  // patterns rules: auth, input validation, access control, secrets
+  // deps rules: supply chain + auth (version pinning affects both)
+  const targetLayerSlugs =
+    contentType === "patterns"
+      ? ["auth_session", "input_validation", "authz_access", "secrets_credentials"]
+      : ["dependency_supply", "auth_session"];
+  for (const layerSlug of targetLayerSlugs) {
+    const layerId = layerIdBySlug.get(layerSlug);
+    if (layerId) await db.insert(ruleLayerMap).values({ ruleId, layerId }).onConflictDoNothing();
   }
 }
 
@@ -587,7 +594,7 @@ async function seedUpsert(master: MasterFile, threatStacks: ThreatStackFile, shi
         .returning({ id: rule.id });
 
       const ruleId = upserted!.id;
-      await reconcileRuleForStack(ruleId, stackId, ideIdBySlug, layerIdBySlug);
+      await reconcileRuleForStack(ruleId, stackId, ideIdBySlug, layerIdBySlug, contentType);
     }
   }
 
@@ -709,9 +716,15 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
           await db.insert(ruleIde).values({ ruleId, ideId }).onConflictDoNothing();
         }
       }
-      const authLayerId = layerIdBySlug.get("auth_session");
-      if (authLayerId) {
-        await db.insert(ruleLayerMap).values({ ruleId, layerId: authLayerId }).onConflictDoNothing();
+      // patterns rules: auth, input validation, access control, secrets
+      // deps rules: supply chain + auth (version pinning affects both)
+      const targetLayerSlugs2 =
+        contentType === "patterns"
+          ? ["auth_session", "input_validation", "authz_access", "secrets_credentials"]
+          : ["dependency_supply", "auth_session"];
+      for (const layerSlug of targetLayerSlugs2) {
+        const layerId = layerIdBySlug.get(layerSlug);
+        if (layerId) await db.insert(ruleLayerMap).values({ ruleId, layerId }).onConflictDoNothing();
       }
 
       const linkThreats = await db

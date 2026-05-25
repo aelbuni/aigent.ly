@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
 import { MaterialSymbol } from "@/components/MaterialSymbol";
 import {
@@ -14,6 +15,39 @@ type Ide = { id: number; slug: string; name: string; sortOrder: number };
 type LayerRow = { id: string; slug: string; name: string; description: string; concernStatement: string; iconName: string | null; colorToken: string | null; isSystem: boolean; isActive: boolean; sortOrder: number; ruleCount: number };
 
 type ClaudeMode = "claude-md" | "skill-md";
+
+// ─── Stack icon config ────────────────────────────────────────────────────────
+
+const STACK_ICONS: Record<string, { logo?: string; initials: string; bg: string; text: string }> = {
+  nextjs:      { logo: "/next.svg",  initials: "N",  bg: "bg-black",         text: "text-white" },
+  express:     { initials: "Ex",  bg: "bg-slate-800",     text: "text-white" },
+  fastapi:     { initials: "FA",  bg: "bg-emerald-700",   text: "text-white" },
+  nestjs:      { initials: "Ne",  bg: "bg-red-700",       text: "text-white" },
+  nuxt:        { initials: "Nx",  bg: "bg-green-600",     text: "text-white" },
+  "react-spa": { initials: "R",   bg: "bg-sky-600",       text: "text-white" },
+  django:      { initials: "Dj",  bg: "bg-green-800",     text: "text-white" },
+  rails:       { initials: "Rb",  bg: "bg-red-600",       text: "text-white" },
+  go:          { initials: "Go",  bg: "bg-cyan-700",      text: "text-white" },
+  ios:         { initials: "iOS", bg: "bg-slate-700",     text: "text-white" },
+  android:     { initials: "An",  bg: "bg-green-600",     text: "text-white" },
+};
+
+function StackIcon({ slug, selected }: { slug: string; selected: boolean }) {
+  const cfg = STACK_ICONS[slug];
+  if (cfg?.logo) {
+    return (
+      <span className={`flex h-8 w-8 items-center justify-center rounded-md ${selected ? "bg-white/20" : "bg-surface-container"}`}>
+        <Image src={cfg.logo} alt="" width={22} height={22} className="object-contain" />
+      </span>
+    );
+  }
+  const { initials = "?", bg = "bg-slate-500", text = "text-white" } = cfg ?? {};
+  return (
+    <span className={`flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-bold ${bg} ${text}`}>
+      {initials}
+    </span>
+  );
+}
 
 // ─── IDE metadata ─────────────────────────────────────────────────────────────
 
@@ -86,7 +120,8 @@ export function ComposerPageClient({
 
   const layersBySlug = useMemo(() => new Map(layers.map((l) => [l.slug, l])), [layers]);
 
-  const allLayerSlugs = useMemo(() => layers.map((l) => l.slug), [layers]);
+  // Only layers with rules matter for selection/counts
+  const allLayerSlugs = useMemo(() => layers.filter((l) => l.ruleCount > 0).map((l) => l.slug), [layers]);
   const allSelected = allLayerSlugs.length > 0 && allLayerSlugs.every((s) => selectedLayers.has(s));
 
   // ── Stack selection ───────────────────────────────────────────────────────────
@@ -202,7 +237,7 @@ export function ComposerPageClient({
                         : "border-outline-variant hover:border-primary/40 text-on-surface"
                     }`}
                   >
-                    <MaterialSymbol name="layers" className="!text-xl text-inherit" />
+                    <StackIcon slug={s.slug} selected={stackSlug === s.slug} />
                     <span className="font-mono-label text-xs leading-tight">{s.name}</span>
                   </button>
                 ))}
@@ -281,7 +316,7 @@ export function ComposerPageClient({
               <div className="flex items-center justify-between">
                 <span className="font-body-sm text-on-surface-variant">
                   {selectedLayers.size === 0
-                    ? "No layers selected — all will be included"
+                    ? `All ${allLayerSlugs.length} layers included`
                     : `${selectedLayers.size} of ${allLayerSlugs.length} layers selected`}
                 </span>
                 <button
@@ -293,11 +328,13 @@ export function ComposerPageClient({
                 </button>
               </div>
 
-              {/* Tier groups */}
+              {/* Tier groups — only render tiers and layers that have rules */}
               {LAYER_TIERS.map((tier) => {
                 const tierLayers = tier.slugs
                   .map((slug) => layersBySlug.get(slug))
-                  .filter((l): l is LayerRow => !!l);
+                  .filter((l): l is LayerRow => !!l && l.ruleCount > 0);
+                // Skip the entire tier section if no layers have rules
+                if (tierLayers.length === 0) return null;
                 const isExpanded = expandedTiers.has(tier.tier);
                 const selectedInTier = tierLayers.filter((l) => selectedLayers.has(l.slug)).length;
 
@@ -322,42 +359,26 @@ export function ComposerPageClient({
 
                     {isExpanded && (
                       <div className="divide-y divide-outline-variant/50">
-                        {tierLayers.length === 0 ? (
-                          <p className="px-4 py-3 font-body-sm text-on-surface-variant">
-                            No layers loaded for this tier yet.
-                          </p>
-                        ) : (
-                          tierLayers.map((l) => {
-                            const hasRules = l.ruleCount > 0;
-                            return (
-                              <label
-                                key={l.slug}
-                                className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-container-low ${
-                                  !hasRules ? "opacity-50" : ""
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedLayers.has(l.slug)}
-                                  onChange={() => toggleLayer(l.slug)}
-                                  disabled={!hasRules}
-                                  className="rounded border-outline accent-primary"
-                                />
-                                <span className="flex-1 min-w-0">
-                                  <span className="block font-mono-label text-sm text-on-surface truncate">{l.name}</span>
-                                  <span className="block font-body-sm text-xs text-on-surface-variant truncate">{l.concernStatement}</span>
-                                </span>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono-label text-xs ${
-                                  hasRules
-                                    ? "bg-primary/10 text-primary"
-                                    : "bg-surface-container text-on-surface-variant"
-                                }`}>
-                                  {l.ruleCount} rule{l.ruleCount !== 1 ? "s" : ""}
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
+                        {tierLayers.map((l) => (
+                          <label
+                            key={l.slug}
+                            className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-container-low"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedLayers.has(l.slug)}
+                              onChange={() => toggleLayer(l.slug)}
+                              className="rounded border-outline accent-primary"
+                            />
+                            <span className="flex-1 min-w-0">
+                              <span className="block font-mono-label text-sm text-on-surface truncate">{l.name}</span>
+                              <span className="block font-body-sm text-xs text-on-surface-variant truncate">{l.concernStatement}</span>
+                            </span>
+                            <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-mono-label text-xs text-primary">
+                              {l.ruleCount} rule{l.ruleCount !== 1 ? "s" : ""}
+                            </span>
+                          </label>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -409,7 +430,17 @@ export function ComposerPageClient({
                 preview.content.slice(0, 8000) + (preview.content.length > 8000 ? "\n\n… (truncated)" : "")
               ) : (
                 <span className="text-inverse-on-surface/40">
-                  {`# Select stack, IDE, and layers\n# then click "Generate file"\n\nstack: ${stackName || "…"}\nide: ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}\nlayers: [${selectedLayers.size > 0 ? [...selectedLayers].slice(0, 3).join(", ") + (selectedLayers.size > 3 ? ", …" : "") : "all"}]`}
+                  {stackSlug
+                    ? [
+                        `# aigently-${stackSlug}-security${ideSlug === "cursor" ? ".mdc" : ".md"}`,
+                        `# Aigent.ly guardrails for ${stackName} · ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}`,
+                        `# ${allLayerSlugs.length} security layer${allLayerSlugs.length !== 1 ? "s" : ""} · ${layers.reduce((n, l) => n + l.ruleCount, 0)} rules`,
+                        ``,
+                        ...allLayerSlugs.slice(0, 8).map((slug) => `## ${layersBySlug.get(slug)?.name ?? slug}`),
+                        ``,
+                        `→ Click "Generate file" to merge and export`,
+                      ].join("\n")
+                    : `# Select stack, IDE, and layers\n# then click "Generate file"\n\nstack: …\nide: ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}`}
                 </span>
               )}
             </pre>
