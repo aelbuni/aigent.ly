@@ -110,7 +110,7 @@ export function ComposerPageClient({
   const [expandedTiers, setExpandedTiers] = useState<Set<TierKey>>(new Set(["core", "infrastructure", "operational"]));
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  type ThreatMeta = { cveId: string | null; severity: string | null; name: string };
+  type ThreatMeta = { cveId: string | null; severity: string | null; name: string; sourceUrl?: string | null };
   type LayerMeta = { layerSlug: string; layerName: string; threatCount: number; threats: ThreatMeta[] };
   const [preview, setPreview] = useState<{ content: string; filename: string; layers?: LayerMeta[] } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -485,14 +485,9 @@ export function ComposerPageClient({
                 <Stat label="File" value={preview.filename} mono />
               </div>
 
-              {/* Per-layer threat counts */}
+              {/* Deduplicated unique threats across all selected layers */}
               {preview.layers && preview.layers.some((l) => l.threatCount > 0) && (
-                <div className="space-y-2 border-t border-outline-variant/50 pt-3">
-                  <p className="font-mono-label text-xs text-on-surface-variant uppercase tracking-wide">Threats protected</p>
-                  {preview.layers.filter((l) => l.threatCount > 0).map((layer) => (
-                    <LayerThreatRow key={layer.layerSlug} layer={layer} />
-                  ))}
-                </div>
+                <UniqueThreatsPanel layers={preview.layers} />
               )}
             </div>
           )}
@@ -527,26 +522,44 @@ function Stat({ label, value, mono = false }: { label: string; value: string; mo
   );
 }
 
-type ThreatMetaUI = { cveId: string | null; severity: string | null; name: string };
+type ThreatMetaUI = { cveId: string | null; severity: string | null; name: string; sourceUrl?: string | null };
 type LayerMetaUI = { layerSlug: string; layerName: string; threatCount: number; threats: ThreatMetaUI[] };
 
-function LayerThreatRow({ layer }: { layer: LayerMetaUI }) {
+const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+function UniqueThreatsPanel({ layers }: { layers: LayerMetaUI[] }) {
   const [expanded, setExpanded] = useState(false);
-  const critCount = layer.threats.filter((t) => t.severity === "critical").length;
-  const highCount = layer.threats.filter((t) => t.severity === "high").length;
+
+  // Deduplicate across all layers by cveId (fall back to name for threats without CVE ID)
+  const uniqueMap = new Map<string, ThreatMetaUI>();
+  for (const layer of layers) {
+    for (const t of layer.threats) {
+      const key = t.cveId ?? t.name;
+      if (!uniqueMap.has(key)) uniqueMap.set(key, t);
+    }
+  }
+  const unique = [...uniqueMap.values()].sort(
+    (a, b) => (SEV_ORDER[a.severity ?? ""] ?? 9) - (SEV_ORDER[b.severity ?? ""] ?? 9)
+  );
+
+  const critCount = unique.filter((t) => t.severity === "critical").length;
+  const highCount = unique.filter((t) => t.severity === "high").length;
+  const total = unique.length;
 
   return (
-    <div>
+    <div className="border-t border-outline-variant/50 pt-3 space-y-2">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className="font-mono-label text-xs text-on-surface truncate">{layer.layerName}</span>
+        <p className="font-mono-label text-xs text-on-surface-variant uppercase tracking-wide">
+          Threats covered
+        </p>
         <span className="flex shrink-0 items-center gap-1.5">
           {critCount > 0 && (
             <span className="rounded-full bg-error/15 px-1.5 py-0.5 font-mono-label text-[10px] text-error">
-              {critCount} crit
+              {critCount} critical
             </span>
           )}
           {highCount > 0 && (
@@ -554,31 +567,52 @@ function LayerThreatRow({ layer }: { layer: LayerMetaUI }) {
               {highCount} high
             </span>
           )}
-          <span className="font-mono-label text-[10px] text-on-surface-variant">{layer.threatCount} CVEs</span>
+          <span className="font-mono-label text-[10px] text-on-surface-variant">{total} unique CVEs</span>
           <MaterialSymbol
             name={expanded ? "expand_less" : "expand_more"}
             className="!text-sm text-on-surface-variant"
           />
         </span>
       </button>
+
       {expanded && (
-        <div className="mt-1.5 space-y-1 rounded-lg bg-surface-container p-2 max-h-48 overflow-y-auto">
-          {layer.threats.map((t) => (
-            <div key={t.cveId ?? t.name} className="flex items-start gap-2">
-              <span className={`shrink-0 font-mono-label text-[10px] leading-4 ${
-                t.severity === "critical"
-                  ? "text-error"
-                  : t.severity === "high"
-                    ? "text-tertiary-container"
-                    : "text-on-surface-variant"
-              }`}>
-                {(t.severity ?? "?").slice(0, 4).toUpperCase()}
-              </span>
-              <span className="font-mono text-[10px] leading-4 text-on-surface-variant break-all">
-                {t.cveId ? `${t.cveId} · ` : ""}{t.name.length > 70 ? t.name.slice(0, 70) + "…" : t.name}
-              </span>
-            </div>
-          ))}
+        <div className="space-y-1 rounded-lg bg-surface-container p-2 max-h-64 overflow-y-auto">
+          {unique.map((t) => {
+            const key = t.cveId ?? t.name;
+            const sevClass =
+              t.severity === "critical"
+                ? "text-error"
+                : t.severity === "high"
+                  ? "text-tertiary-container"
+                  : "text-on-surface-variant";
+            const label = t.cveId ?? "—";
+            const href = t.sourceUrl ?? (t.cveId ? `https://nvd.nist.gov/vuln/detail/${t.cveId}` : null);
+            return (
+              <div key={key} className="flex items-start gap-2">
+                <span className={`shrink-0 font-mono-label text-[10px] leading-4 ${sevClass}`}>
+                  {(t.severity ?? "?").slice(0, 4).toUpperCase()}
+                </span>
+                <span className="font-mono text-[10px] leading-4 text-on-surface-variant min-w-0">
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                  {" · "}
+                  <span className="text-on-surface-variant">
+                    {t.name.length > 65 ? t.name.slice(0, 65) + "…" : t.name}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

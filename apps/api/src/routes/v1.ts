@@ -627,6 +627,7 @@ export async function registerV1Routes(app: FastifyInstance) {
                           cveId: { type: "string", nullable: true },
                           severity: { type: "string", nullable: true },
                           name: { type: "string" },
+                          sourceUrl: { type: "string", nullable: true },
                         },
                       },
                     },

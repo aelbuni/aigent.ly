@@ -72,6 +72,7 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
           cveId: t.cveId ?? null,
           severity: t.severity ?? null,
           name: t.name,
+          sourceUrl: t.sourceUrl ?? null,
         })),
       })),
     };

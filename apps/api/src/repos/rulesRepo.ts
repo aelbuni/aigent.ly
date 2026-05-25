@@ -260,6 +260,7 @@ export type ThreatMeta = {
   cveId: string | null;
   severity: string | null;
   name: string;
+  sourceUrl: string | null;
 };
 
 export type GuardrailForExport = {
@@ -322,6 +323,7 @@ export async function listGuardrailsForComposerExport(
           cveId: threat.cveId,
           severity: threat.severity,
           name: threat.name,
+          sourceUrl: threat.sourceUrl,
         })
         .from(ruleThreatMap)
         .innerJoin(threat, eq(ruleThreatMap.threatId, threat.publicId))
