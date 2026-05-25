@@ -480,11 +480,12 @@ async function reconcileRuleForStack(
 
   await db.delete(ruleLayerMap).where(eq(ruleLayerMap.ruleId, ruleId));
   // patterns rules: auth, input validation, access control, secrets
-  // deps rules: supply chain + auth (version pinning affects both)
+  // deps rules: supply chain only — keeping them out of auth_session prevents
+  // version advisories from flooding the auth guardrail content
   const targetLayerSlugs =
     contentType === "patterns"
       ? ["auth_session", "input_validation", "authz_access", "secrets_credentials"]
-      : ["dependency_supply", "auth_session"];
+      : ["dependency_supply"];
   for (const layerSlug of targetLayerSlugs) {
     const layerId = layerIdBySlug.get(layerSlug);
     if (layerId) await db.insert(ruleLayerMap).values({ ruleId, layerId }).onConflictDoNothing();
@@ -717,11 +718,12 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
         }
       }
       // patterns rules: auth, input validation, access control, secrets
-      // deps rules: supply chain + auth (version pinning affects both)
+      // deps rules: supply chain only — keeping them out of auth_session prevents
+      // version advisories from flooding the auth guardrail content
       const targetLayerSlugs2 =
         contentType === "patterns"
           ? ["auth_session", "input_validation", "authz_access", "secrets_credentials"]
-          : ["dependency_supply", "auth_session"];
+          : ["dependency_supply"];
       for (const layerSlug of targetLayerSlugs2) {
         const layerId = layerIdBySlug.get(layerSlug);
         if (layerId) await db.insert(ruleLayerMap).values({ ruleId, layerId }).onConflictDoNothing();
