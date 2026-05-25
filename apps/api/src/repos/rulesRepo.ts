@@ -259,7 +259,8 @@ export async function listRulesForComposerExport(
 /** Per-layer AI-synthesized guardrails for the Composer export.
  *  Returns one row per (stack, layer) pair that has a generated guardrail,
  *  ordered by layer sort order. Only layers in `layerSlugs` are returned.
- *  Falls back gracefully — if a layer has no guardrail, it is omitted. */
+ *  Falls back gracefully — if a layer has no guardrail, it is omitted.
+ *  Deduplicates by (stackId, layerId): keeps the newest row per pair. */
 export async function listGuardrailsForComposerExport(
   stackSlug: string,
   layerSlugs: string[]
@@ -270,6 +271,7 @@ export async function listGuardrailsForComposerExport(
       layerSlug: layer.slug,
       layerName: layer.name,
       content: summarizedGuardrail.content,
+      generatedAt: summarizedGuardrail.generatedAt,
     })
     .from(summarizedGuardrail)
     .innerJoin(stack, eq(stack.id, summarizedGuardrail.stackId))
@@ -281,5 +283,20 @@ export async function listGuardrailsForComposerExport(
       )
     )
     .orderBy(asc(layer.sortOrder));
-  return rows;
+
+  // Deduplicate: keep newest guardrail per layer slug
+  const seen = new Map<string, typeof rows[number]>();
+  for (const row of rows) {
+    const existing = seen.get(row.layerSlug);
+    if (!existing || (row.generatedAt && existing.generatedAt && row.generatedAt > existing.generatedAt)) {
+      seen.set(row.layerSlug, row);
+    }
+  }
+  // Return in layer sort order (Map preserves insertion order of first occurrence,
+  // so re-sort by the original array order)
+  return [...seen.values()].sort((a, b) => {
+    const ai = rows.findIndex((r) => r.layerSlug === a.layerSlug);
+    const bi = rows.findIndex((r) => r.layerSlug === b.layerSlug);
+    return ai - bi;
+  });
 }
