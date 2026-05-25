@@ -64,7 +64,55 @@ The App Router uses separate route groups so styles do not mix:
 
 ---
 
-## Seeding catalog data
+## Data pipeline & rule generation
+
+### How rules are built
+
+Rules are generated programmatically from CVE/threat data, not hand-authored. Each of the 6 launch stacks gets two rule types:
+
+| Rule type | Slug pattern | Covers |
+|---|---|---|
+| **Patterns** | `{stack}-security-patterns-v1` | ALWAYS/NEVER safe-coding directives from CVE amplification |
+| **Deps** | `{stack}-security-deps-v1` | WARN/CONFIRM/CHECK dependency upgrade guidance |
+
+Each rule is assigned to multiple security layers:
+- **Patterns rules** → Authentication & Session, Input Validation, Authorization & Access Control, Secrets & Credentials
+- **Deps rules** → Dependency & Supply Chain, Authentication & Session
+
+### Running the full pipeline locally
+
+```bash
+cd apps/web
+
+# 1. Sync latest CVEs from NVD, GHSA, OSV, CISA KEV
+npm run sync:threats
+
+# 2. Amplify threats with AI (generates ALWAYS/NEVER patterns per CVE)
+npm run amplify:threats
+
+# 3. Regenerate rule bodies from current threat data and layer assignments
+SEED_MODE=upsert npx tsx scripts/seed.ts
+
+# 4. Generate AI guardrails for all stack×layer pairs (calls Claude)
+MODE=all npm run summarize:layers
+
+# 5. Export updated catalog to packages/catalog-data/ JSON
+npm run export:catalog
+```
+
+After step 3 you can also run `npx tsx scripts/fix-rule-layers.ts` to reassign existing rules to the correct layers without a full seed.
+
+### Rule-layer assignment logic (seed.ts)
+
+Rules are only generated for the 6 LAUNCH stacks (nextjs, express, fastapi, nestjs, nuxt, react-spa). The `COMING_SOON` stacks (django, rails, go, ios, android) are seeded into the DB but have no rules until promoted.
+
+```
+LAUNCH_STACK_SLUGS = stacks where catalogStatus === "launch"
+```
+
+To promote a stack from `coming_soon` to `launch`: update `catalogStatus` in `packages/mvp-catalog/src/stack-registry.ts`, then run the full pipeline.
+
+### Seeding catalog data from the public repo
 
 This repo does not run the CVE pipeline — that lives in the public catalog repo. To get fresh catalog data locally, either:
 
