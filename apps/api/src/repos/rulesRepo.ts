@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 
-import { ide, layer, rule, ruleIde, ruleLayerMap, ruleStack, ruleThreatMap, stack, threat } from "@aigently/db/schema";
+import { ide, layer, rule, ruleIde, ruleLayerMap, ruleStack, ruleThreatMap, stack, summarizedGuardrail, threat } from "@aigently/db/schema";
 
 import { db } from "../lib/db.js";
 
@@ -254,4 +254,32 @@ export async function listRulesForComposerExport(
     }
     return false;
   });
+}
+
+/** Per-layer AI-synthesized guardrails for the Composer export.
+ *  Returns one row per (stack, layer) pair that has a generated guardrail,
+ *  ordered by layer sort order. Only layers in `layerSlugs` are returned.
+ *  Falls back gracefully — if a layer has no guardrail, it is omitted. */
+export async function listGuardrailsForComposerExport(
+  stackSlug: string,
+  layerSlugs: string[]
+): Promise<{ layerSlug: string; layerName: string; content: string }[]> {
+  if (layerSlugs.length === 0) return [];
+  const rows = await db
+    .select({
+      layerSlug: layer.slug,
+      layerName: layer.name,
+      content: summarizedGuardrail.content,
+    })
+    .from(summarizedGuardrail)
+    .innerJoin(stack, eq(stack.id, summarizedGuardrail.stackId))
+    .innerJoin(layer, eq(layer.id, summarizedGuardrail.layerId))
+    .where(
+      and(
+        eq(stack.slug, stackSlug),
+        inArray(layer.slug, layerSlugs)
+      )
+    )
+    .orderBy(asc(layer.sortOrder));
+  return rows;
 }

@@ -5,12 +5,7 @@ import { and, eq, isNull, like } from "drizzle-orm";
 import { db, pool, rule, ruleStack, ruleThreatMap, stack, threat } from "../lib/db";
 import { createLLMClient, getModelForTask } from "../lib/summarizer/llm-client";
 
-// ── Client setup ──────────────────────────────────────────────────────────────
-// Provider and model read from DB (admin-configurable), credentials from env.
-const [client, MODEL] = await Promise.all([
-  createLLMClient(),
-  getModelForTask("rule_summarization"),
-]);
+// ── Config (resolved inside main to avoid top-level await in CJS mode) ────────
 const FORCE      = process.env.FORCE === "1";
 const STACK_SLUG =
   process.env.STACK_SLUG ??
@@ -18,6 +13,8 @@ const STACK_SLUG =
     ? process.argv[process.argv.indexOf("--stack") + 1]
     : null) ??
   null;
+let client: Awaited<ReturnType<typeof createLLMClient>>;
+let MODEL: string;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
@@ -296,6 +293,10 @@ async function summarizeRule(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
+  [client, MODEL] = await Promise.all([
+    createLLMClient(),
+    getModelForTask("rule_summarization"),
+  ]);
   console.log(`Model: ${MODEL}`);
   if (STACK_SLUG) console.log(`Filter: stack = ${STACK_SLUG}`);
   if (FORCE) console.log("Mode: FORCE (overwrite existing summaries)");

@@ -1,4 +1,4 @@
-import { listRulesForComposerExport } from "../repos/rulesRepo.js";
+import { listGuardrailsForComposerExport, listRulesForComposerExport } from "../repos/rulesRepo.js";
 
 export type ComposerExportInput = {
   stackSlug: string;
@@ -44,72 +44,65 @@ function frontmatterBlock(input: {
 }
 
 export async function buildComposerMarkdownExport(input: ComposerExportInput) {
-  const rules = await listRulesForComposerExport(
-    input.stackSlug,
-    input.ideSlug,
-    input.layers
-  );
+  const ext = ideRuleFileExtension(input.ideSlug);
+  const filename = `aigently-${input.stackSlug}-security.${ext}`;
 
-  const header = [
-    `<!-- Aigent.ly composer export -->`,
-    `Stack: ${input.stackSlug}`,
-    `IDE: ${input.ideSlug}`,
-    input.layers.length ? `Layers: ${input.layers.join(", ")}` : `Layers: (all)`,
-    ``,
-    `---`,
-    ``,
-  ].join("\n");
+  // ── Primary path: use per-layer AI-synthesized guardrails ──────────────────
+  // These are composable: one section per selected layer, no cross-layer content.
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+
+  if (guardrails.length > 0) {
+    const layerCount = guardrails.length;
+    const fm = frontmatterBlock({
+      ideSlug: input.ideSlug,
+      description: `${input.stackSlug} security guardrails — ${layerCount} layer${layerCount !== 1 ? "s" : ""}`,
+      alwaysApply: true,
+    });
+    // Each guardrail is a self-contained section; join with a separator.
+    const body = guardrails
+      .map((g) => g.content.trim())
+      .join("\n\n---\n\n");
+    return {
+      format: "markdown" as const,
+      content: `${fm}${body}\n`,
+      filename,
+    };
+  }
+
+  // ── Fallback path: raw rules (used when guardrails haven't been generated yet) ──
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
 
   if (rules.length === 0) {
     return {
       format: "markdown" as const,
-      content: `${header}_No matching rules in the catalog for this configuration._\n`,
-      filename: `aigently-rules-${input.stackSlug}-${input.ideSlug}.md`,
+      content: `<!-- No guardrails or rules found for ${input.stackSlug} with the selected layers. Run the summarize:layers pipeline to generate guardrails. -->\n`,
+      filename,
     };
   }
 
-  const ext = ideRuleFileExtension(input.ideSlug);
+  // Raw rules: emit bodyMdx directly without markdown wrapping so the content
+  // reads as AI instructions, not a documentation document.
   const blocks = rules.map((r) => {
-    const body = (r.bodyMdx ?? "").trim() || `_No body for **${r.slug}**._`;
-    const isPatterns = isPatternsRuleSlug(r.slug);
+    const body = (r.bodyMdx ?? "").trim();
+    if (!body) return "";
     const isDeps = isDepsRuleSlug(r.slug);
-    const fileBase = isPatterns ? "security-patterns" : isDeps ? "security-deps" : r.slug;
-    const filename = `aigently-${input.stackSlug}-${fileBase}.${ext}`;
     const fm = frontmatterBlock({
       ideSlug: input.ideSlug,
       description: r.description,
-      alwaysApply: isDeps ? false : true,
+      alwaysApply: !isDeps,
       globs: isDeps ? globsForDeps(input.ideSlug) : undefined,
     });
-    const fileContent = `${fm}${body}\n`;
-    return [
-      `## ${r.name}`,
-      `**Slug:** \`${r.slug}\` · **Version:** ${r.version}`,
-      `**File:** \`${filename}\``,
-      ``,
-      "```",
-      fileContent.trimEnd(),
-      "```",
-      ``,
-      "---",
-      "",
-    ].join("\n");
-  });
+    return `${fm}${body}`;
+  }).filter(Boolean);
 
   return {
     format: "markdown" as const,
-    content: `${header}${blocks.join("\n")}`,
-    filename: `aigently-rules-${input.stackSlug}-${input.ideSlug}.md`,
+    content: blocks.join("\n\n---\n\n") + "\n",
+    filename,
   };
 }
 
 export async function buildSkillMdExport(input: ComposerExportInput & { stackName?: string }) {
-  const rules = await listRulesForComposerExport(
-    input.stackSlug,
-    input.ideSlug,
-    input.layers
-  );
-
   const displayName = input.stackName ?? input.stackSlug;
   const frontmatter = [
     "---",
@@ -120,19 +113,28 @@ export async function buildSkillMdExport(input: ComposerExportInput & { stackNam
     "",
   ].join("\n");
 
-  if (rules.length === 0) {
+  // Prefer per-layer guardrails (composable, deduplicated, WHEN/THEN structured)
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+  if (guardrails.length > 0) {
+    const body = guardrails.map((g) => g.content.trim()).filter(Boolean).join("\n\n---\n\n");
     return {
       format: "markdown" as const,
-      content: `${frontmatter}_No matching rules in the catalog for this configuration._\n`,
+      content: `${frontmatter}${body}\n`,
       filename: "SKILL.md",
     };
   }
 
-  const body = rules
-    .map((r) => (r.bodyMdx ?? "").trim())
-    .filter(Boolean)
-    .join("\n\n---\n\n");
+  // Fallback to raw rules
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
+  if (rules.length === 0) {
+    return {
+      format: "markdown" as const,
+      content: `${frontmatter}<!-- No guardrails or rules found. Run summarize:layers to generate content. -->\n`,
+      filename: "SKILL.md",
+    };
+  }
 
+  const body = rules.map((r) => (r.bodyMdx ?? "").trim()).filter(Boolean).join("\n\n---\n\n");
   return {
     format: "markdown" as const,
     content: `${frontmatter}${body}\n`,
