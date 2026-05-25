@@ -590,7 +590,7 @@ function UniqueThreatsPanel({ layers }: { layers: LayerMetaUI[] }) {
             return (
               <div key={key} className="flex items-start gap-2">
                 <span className={`shrink-0 font-mono-label text-[10px] leading-4 ${sevClass}`}>
-                  {(t.severity ?? "?").slice(0, 4).toUpperCase()}
+                  {(t.severity ?? "unknown").toUpperCase()}
                 </span>
                 <span className="font-mono text-[10px] leading-4 text-on-surface-variant min-w-0">
                   {href ? (
