@@ -16,6 +16,21 @@ export const dynamic = "force-dynamic";
 
 type Threat = components["schemas"]["Threat"];
 
+/** Strip markdown syntax from advisory descriptions so they render as plain text.
+ *  GHSA/NVD descriptions often contain ### headings, [link](url), and ** bold. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")           // ## headings
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) → text
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")    // ![img](url) → remove
+    .replace(/\*\*([^*]+)\*\*/g, "$1")       // **bold** → text
+    .replace(/\*([^*]+)\*/g, "$1")           // *italic* → text
+    .replace(/`([^`]+)`/g, "$1")             // `code` → text
+    .replace(/^\s*[-*+]\s+/gm, "")          // bullet points
+    .replace(/\n{3,}/g, "\n\n")             // collapse excess newlines
+    .trim();
+}
+
 function severityStyle(sev: string | null | undefined) {
   switch (sev) {
     case "critical":
@@ -344,7 +359,7 @@ export default async function ThreatsPage({
                         </div>
                         <h3 className="mt-2 text-lg font-semibold text-on-surface">{t.name}</h3>
                         {t.description ? (
-                          <p className="mt-2 line-clamp-4 text-body-sm text-on-surface-variant">{t.description}</p>
+                          <p className="mt-2 line-clamp-4 text-body-sm text-on-surface-variant">{stripMarkdown(t.description)}</p>
                         ) : null}
                         <div className="mt-3 flex flex-wrap gap-2">
                           {t.tags.map((tag) => (
