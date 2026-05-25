@@ -243,13 +243,15 @@ export async function listRulesForComposerExport(
     set.add(row.layerSlug);
   }
 
-  const needed = new Set(layerSlugs);
+  // Include rule if it covers ANY of the requested layers (OR semantics).
+  // AND semantics (every layer required) produced empty results when users
+  // select a broad layer set but individual rules only cover a subset.
   return candidates.filter((c) => {
     const got = byRule.get(c.id);
     if (!got) return false;
-    for (const l of needed) {
-      if (!got.has(l)) return false;
+    for (const l of layerSlugs) {
+      if (got.has(l)) return true;
     }
-    return true;
+    return false;
   });
 }
