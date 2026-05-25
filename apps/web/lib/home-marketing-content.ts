@@ -16,10 +16,10 @@ export const TESTIMONIAL = {
 } as const;
 
 export const MARQUEE_ITEMS = [
-  { tone: "text-error", label: "CRITICAL:", text: "AI-GENERATED CODE NEEDS REVIEW" },
-  { tone: "text-primary-fixed-dim", label: "NEW:", text: "CURATED THREAT FEED + STACK MATRIX" },
-  { tone: "text-error", label: "ALERT:", text: "PROMPT INJECTION & TOOL ABUSE IN AGENTS" },
-  { tone: "text-primary-fixed-dim", label: "DATA:", text: "MANY REPOS SHIP WITHOUT AGENT GUARDRAILS" },
+  { tone: "text-error",             label: "CRITICAL:", text: "AI-GENERATED CODE NEEDS REVIEW",                    href: "/threats" },
+  { tone: "text-error",             label: "ALERT:",    text: "PROMPT INJECTION & TOOL ABUSE IN AGENTS",           href: "/threats" },
+  { tone: "text-primary-fixed-dim", label: "STAT:",     text: "MANY REPOS SHIP WITHOUT AGENT GUARDRAILS",          href: "/rules" },
+  { tone: "text-primary-fixed-dim", label: "STAT:",     text: "35 CVEs CREATED BY AI CODING TOOLS IN MARCH 2026",  href: "/threats" },
 ] as const;
 
 export const THREE_USPS = [
