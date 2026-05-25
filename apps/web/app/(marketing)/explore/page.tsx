@@ -52,7 +52,7 @@ export default async function ExplorePage() {
         (c.layers ?? []).map((l) => (typeof l === "string" ? l : (l as { slug: string }).slug))
       )
     ).size,
-    stacksCovered: new Set(allCards.flatMap((c) => c.stacks)).size,
+    stacksCovered: launchStacks.length,
     avgStrength: allCards.length
       ? Math.round(
           allCards.reduce((sum, c) => sum + ((c as { strengthScore?: number }).strengthScore ?? 0), 0) /

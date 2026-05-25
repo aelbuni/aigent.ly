@@ -114,6 +114,7 @@ export function ComposerPageClient({
   type LayerMeta = { layerSlug: string; layerName: string; threatCount: number; threats: ThreatMeta[] };
   const [preview, setPreview] = useState<{ content: string; filename: string; layers?: LayerMeta[] } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // ── Derived ──────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,8 @@ export function ComposerPageClient({
       layers: (res.data as { layers?: LayerMeta[] }).layers,
     });
     setStatus(null);
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3500);
   }
 
   function onDownload() {
@@ -451,6 +454,14 @@ export function ComposerPageClient({
               )}
             </pre>
           </div>
+
+          {/* Success banner */}
+          {showSuccess && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary-fixed-dim/20 px-4 py-2.5 font-mono-label text-sm text-primary">
+              <span>✓</span>
+              <span>File ready — copy or download below, then paste into your IDE rules folder.</span>
+            </div>
+          )}
 
           {/* Actions */}
           {preview && (

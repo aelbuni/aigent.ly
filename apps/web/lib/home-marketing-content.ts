@@ -16,10 +16,10 @@ export const TESTIMONIAL = {
 } as const;
 
 export const MARQUEE_ITEMS = [
-  { tone: "text-error",             label: "CRITICAL:", text: "AI-GENERATED CODE NEEDS REVIEW",                    href: "/threats" },
-  { tone: "text-error",             label: "ALERT:",    text: "PROMPT INJECTION & TOOL ABUSE IN AGENTS",           href: "/threats" },
-  { tone: "text-primary-fixed-dim", label: "STAT:",     text: "MANY REPOS SHIP WITHOUT AGENT GUARDRAILS",          href: "/rules" },
-  { tone: "text-primary-fixed-dim", label: "STAT:",     text: "35 CVEs CREATED BY AI CODING TOOLS IN MARCH 2026",  href: "/threats" },
+  { tone: "text-error",             label: "STAT:",  text: "35 CVEs CREATED BY AI CODING TOOLS IN MARCH 2026",  href: "/threats" },
+  { tone: "text-error",             label: "ALERT:", text: "PROMPT INJECTION & TOOL ABUSE IN AGENTS",           href: "/threats" },
+  { tone: "text-primary-fixed-dim", label: "STAT:",  text: "519 CVE-LINKED THREATS TRACKED ACROSS 6 STACKS",   href: "/threats" },
+  { tone: "text-primary-fixed-dim", label: "LIVE:",  text: "DAILY FEED FROM NVD · GHSA · OSV",                 href: "/threats" },
 ] as const;
 
 export const THREE_USPS = [
@@ -96,9 +96,9 @@ export const STAT_TILES = [
     footnote: "Replaced at runtime from the catalog database after seed.",
   },
   {
-    value: "11",
-    label: "Stacks in catalog",
-    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA, Django, Rails, Go, iOS, Android.",
+    value: "6",
+    label: "Launch stacks covered",
+    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA — fully guardrailed.",
   },
   {
     value: "12",

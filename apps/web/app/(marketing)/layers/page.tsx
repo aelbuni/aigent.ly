@@ -34,7 +34,7 @@ export default async function LayersPage() {
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {systemLayers.map((l) => (
-            <LayerCard key={l.slug} layer={l} />
+            <LayerCard key={l.slug} layer={l} comingSoon={l.ruleCount === 0} />
           ))}
         </div>
       </section>
@@ -100,6 +100,6 @@ function LayerCard({ layer: l, comingSoon }: LayerCardProps) {
     </div>
   );
 
-  if (comingSoon) return card;
+  if (comingSoon && !l.isSystem) return card;
   return <Link href={`/layers/${l.slug}`}>{card}</Link>;
 }

@@ -286,6 +286,16 @@ export default async function ThreatsPage({
           </div>
 
           <div className="flex flex-col gap-4 lg:col-span-5">
+            {/* Composer bridge CTA */}
+            <div className="rounded-lg border border-primary/30 bg-primary-fixed-dim/10 px-4 py-3 text-sm">
+              <p className="text-on-surface">
+                Every CVE below links to a stack-matched guardrail.{" "}
+                <Link href="/composer" className="font-semibold text-primary hover:underline">
+                  Get yours in the Composer →
+                </Link>
+              </p>
+            </div>
+
             <div className="flex flex-wrap items-end justify-between gap-2">
               <h2 className="font-mono-label text-on-surface-variant">Threat feed</h2>
               {totalFiltered > 0 ? (
@@ -342,6 +352,12 @@ export default async function ThreatsPage({
                             </span>
                           ))}
                         </div>
+                        <Link
+                          href="/composer"
+                          className="mt-2 inline-flex items-center gap-1 font-mono-label text-xs text-primary hover:underline"
+                        >
+                          Get a guardrail for your stack →
+                        </Link>
                       </div>
                       <div className="flex shrink-0 flex-col items-end justify-start gap-2 pt-0.5">
                         <span className="whitespace-nowrap rounded-full border border-primary/35 bg-primary-fixed-dim/20 px-3 py-1 font-mono-label text-primary">

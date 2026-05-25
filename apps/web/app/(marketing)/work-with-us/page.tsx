@@ -17,8 +17,7 @@ export default function WorkWithUsPage() {
       <div className="mt-10 rounded-xl border border-outline-variant bg-surface-container-low p-6">
         <p className="font-mono-label text-primary">Contact</p>
         <p className="mt-2 font-body-base text-on-surface-variant">
-          For consulting or enablement, reach out via your usual channel. A public contact form will replace this
-          block when operations are wired.
+          For consulting or enablement, email us directly or open an issue on the open-source catalog.
         </p>
         <a
           href="mailto:hello@aigent.ly"
