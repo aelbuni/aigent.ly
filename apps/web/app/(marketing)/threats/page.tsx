@@ -1,4 +1,3 @@
-import type { components } from "@aigently/api-client";
 import Link from "next/link";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
@@ -7,14 +6,12 @@ import {
   getLastCatalogSyncFinishedAt,
   getLaunchStackThreatSeverityCounts,
   getRuleCountByThreatPublicId,
-  listThreatsOnLaunchStacksFromDb,
+  listThreatsPagedFromDb,
+  type ThreatFeedPage,
 } from "@/lib/catalog-from-db";
-import { getServerApiClient, tryInternal } from "@/lib/server-api";
 import { toFeedItem, type ThreatFeedItem } from "@/lib/threats-showcase";
 
 export const dynamic = "force-dynamic";
-
-type Threat = components["schemas"]["Threat"];
 
 /** Strip markdown syntax from advisory descriptions so they render as plain text.
  *  GHSA/NVD descriptions often contain ### headings, [link](url), and ** bold. */
@@ -119,18 +116,6 @@ function feedCardBorderClass(sev: string | null | undefined) {
   }
 }
 
-function mergeDbThreats(api: Threat[], db: Threat[]): Threat[] {
-  // DB threats are pre-sorted newest-first; put them first so the merge
-  // preserves that order. API threats fill in any gaps not covered by DB.
-  const seen = new Set<string>();
-  const out: Threat[] = [];
-  for (const t of [...db, ...api]) {
-    if (seen.has(t.publicId)) continue;
-    seen.add(t.publicId);
-    out.push(t);
-  }
-  return out;
-}
 
 export default async function ThreatsPage({
   searchParams,
@@ -140,54 +125,40 @@ export default async function ThreatsPage({
   const sp = (await searchParams) ?? {};
   const { mode, single, q, page: requestedPage } = parseThreatSearch(sp);
 
-  const client = await getServerApiClient();
-  let apiThreats: Threat[] = [];
-  if (client) {
-    const res = await tryInternal(() => client.GET("/v1/threats"), null);
-    apiThreats = res?.data?.items ?? [];
-  }
+  // Map severity mode → DB severities array
+  const severities =
+    mode === "critical_high" ? ["critical", "high"] :
+    mode === "single" && single ? [single] :
+    []; // empty = all
 
-  let dbThreats: Threat[] = [];
+  let dbPage: ThreatFeedPage = { items: [], total: 0 };
   let matrixRows: Awaited<ReturnType<typeof getLaunchStackThreatSeverityCounts>> = [];
   let verifiedCount = 0;
   let lastSync: string | null = null;
   let protectByThreat = new Map<string, number>();
   try {
-    dbThreats = await listThreatsOnLaunchStacksFromDb();
-    matrixRows = await getLaunchStackThreatSeverityCounts();
-    verifiedCount = await countDistinctThreatsOnLaunchStacks();
-    lastSync = await getLastCatalogSyncFinishedAt();
-    protectByThreat = await getRuleCountByThreatPublicId();
+    // All DB calls in parallel — paginated query is the fast path
+    [dbPage, matrixRows, verifiedCount, lastSync, protectByThreat] = await Promise.all([
+      listThreatsPagedFromDb({ severities, q, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
+      getLaunchStackThreatSeverityCounts(),
+      countDistinctThreatsOnLaunchStacks(),
+      getLastCatalogSyncFinishedAt(),
+      getRuleCountByThreatPublicId(),
+    ]);
   } catch {
     /* DB unavailable */
   }
 
-  const merged = mergeDbThreats(apiThreats, dbThreats);
-  const feed: ThreatFeedItem[] = merged.map((t) => {
+  const paginatedFeed: ThreatFeedItem[] = dbPage.items.map((t) => {
     const item = toFeedItem(t);
     const n = protectByThreat.get(t.publicId) ?? 0;
     return { ...item, rulesProtect: n };
   });
 
-  const filtered = feed.filter((t) => {
-    if (mode === "critical_high") {
-      if (t.severity !== "critical" && t.severity !== "high") return false;
-    } else if (mode === "single" && single) {
-      if (t.severity !== single) return false;
-    }
-    if (q) {
-      const hay = `${t.name} ${t.description ?? ""} ${t.publicId} ${t.tags.join(" ")}`.toLowerCase();
-      if (!hay.includes(q.toLowerCase())) return false;
-    }
-    if (!t.referenceUrl) return false;
-    return true;
-  });
-
-  const totalFiltered = filtered.length;
+  const totalFiltered = dbPage.total;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / THREAT_FEED_PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
   const sliceStart = (page - 1) * THREAT_FEED_PAGE_SIZE;
-  const paginatedFeed = filtered.slice(sliceStart, sliceStart + THREAT_FEED_PAGE_SIZE);
   const rangeStart = totalFiltered === 0 ? 0 : sliceStart + 1;
   const rangeEnd = Math.min(sliceStart + THREAT_FEED_PAGE_SIZE, totalFiltered);
 
