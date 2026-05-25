@@ -735,3 +735,55 @@ export async function listArticlesFromDb(limit = 50): Promise<ArticleCard[]> {
     contentPath: r.contentPath ?? null,
   }));
 }
+
+export type HomeThreatRow = {
+  publicId: string;
+  name: string;
+  severity: string | null;
+  cveId: string | null;
+  sourceUrl: string | null;
+  isActivelyExploited: boolean;
+  publishedAt: Date | null;
+  stackNames: string[];
+};
+
+/** Top N critical/high threats for the homepage live feed.
+ *  Returns distinct threats across all launch stacks, newest first. */
+export async function listTopThreatsForHomepage(limit = 10): Promise<HomeThreatRow[]> {
+  const rows = await db
+    .select({
+      publicId: threat.publicId,
+      name: threat.name,
+      severity: threat.severity,
+      cveId: threat.cveId,
+      sourceUrl: threat.sourceUrl,
+      isActivelyExploited: threat.isActivelyExploited,
+      publishedAt: threat.publishedAt,
+      stackName: stack.name,
+    })
+    .from(threat)
+    .innerJoin(threatStack, eq(threatStack.threatId, threat.publicId))
+    .innerJoin(stack, eq(stack.id, threatStack.stackId))
+    .where(and(eq(stack.catalogStatus, "launch"), inArray(threat.severity, ["critical", "high"])))
+    .orderBy(sql`${threat.publishedAt} DESC NULLS LAST`, desc(threat.publicId));
+
+  // Deduplicate threats, collect all stack names per threat
+  const map = new Map<string, HomeThreatRow>();
+  for (const r of rows) {
+    if (!map.has(r.publicId)) {
+      map.set(r.publicId, {
+        publicId: r.publicId,
+        name: r.name,
+        severity: r.severity,
+        cveId: r.cveId,
+        sourceUrl: r.sourceUrl,
+        isActivelyExploited: r.isActivelyExploited,
+        publishedAt: r.publishedAt,
+        stackNames: [],
+      });
+    }
+    const entry = map.get(r.publicId)!;
+    if (!entry.stackNames.includes(r.stackName)) entry.stackNames.push(r.stackName);
+  }
+  return [...map.values()].slice(0, limit);
+}

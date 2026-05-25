@@ -1,10 +1,18 @@
 import { HomeView } from "@/components/home/HomeView";
-import { countDistinctThreatsOnLaunchStacks, listLaunchStacksFromDb } from "@/lib/catalog-from-db";
+import {
+  countDistinctThreatsOnLaunchStacks,
+  listLaunchStacksFromDb,
+  listTopThreatsForHomepage,
+  type HomeThreatRow,
+} from "@/lib/catalog-from-db";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const launchStacks = await listLaunchStacksFromDb().catch(() => []);
+  const [launchStacks, topThreats] = await Promise.all([
+    listLaunchStacksFromDb().catch(() => []),
+    listTopThreatsForHomepage(10).catch(() => []),
+  ]);
   let verifiedThreatCount: number | null = null;
   try {
     verifiedThreatCount = await countDistinctThreatsOnLaunchStacks();
@@ -12,5 +20,11 @@ export default async function Home() {
     verifiedThreatCount = null;
   }
 
-  return <HomeView launchStacks={launchStacks} verifiedThreatCount={verifiedThreatCount} />;
+  return (
+    <HomeView
+      launchStacks={launchStacks}
+      verifiedThreatCount={verifiedThreatCount}
+      topThreats={topThreats}
+    />
+  );
 }
