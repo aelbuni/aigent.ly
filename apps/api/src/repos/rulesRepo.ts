@@ -256,21 +256,35 @@ export async function listRulesForComposerExport(
   });
 }
 
+export type ThreatMeta = {
+  cveId: string | null;
+  severity: string | null;
+  name: string;
+};
+
+export type GuardrailForExport = {
+  layerSlug: string;
+  layerName: string;
+  content: string;
+  sourceRuleIds: string[];
+  threats: ThreatMeta[];
+};
+
 /** Per-layer AI-synthesized guardrails for the Composer export.
- *  Returns one row per (stack, layer) pair that has a generated guardrail,
- *  ordered by layer sort order. Only layers in `layerSlugs` are returned.
- *  Falls back gracefully — if a layer has no guardrail, it is omitted.
- *  Deduplicates by (stackId, layerId): keeps the newest row per pair. */
+ *  Returns one row per (stack, layer) pair, ordered by layer sort order.
+ *  Each row includes the threat metadata (CVE ID, severity, name) for
+ *  the rules that contributed to the guardrail. */
 export async function listGuardrailsForComposerExport(
   stackSlug: string,
   layerSlugs: string[]
-): Promise<{ layerSlug: string; layerName: string; content: string }[]> {
+): Promise<GuardrailForExport[]> {
   if (layerSlugs.length === 0) return [];
   const rows = await db
     .select({
       layerSlug: layer.slug,
       layerName: layer.name,
       content: summarizedGuardrail.content,
+      sourceRuleIds: summarizedGuardrail.sourceRuleIds,
       generatedAt: summarizedGuardrail.generatedAt,
     })
     .from(summarizedGuardrail)
@@ -292,11 +306,38 @@ export async function listGuardrailsForComposerExport(
       seen.set(row.layerSlug, row);
     }
   }
-  // Return in layer sort order (Map preserves insertion order of first occurrence,
-  // so re-sort by the original array order)
-  return [...seen.values()].sort((a, b) => {
+  const deduped = [...seen.values()].sort((a, b) => {
     const ai = rows.findIndex((r) => r.layerSlug === a.layerSlug);
     const bi = rows.findIndex((r) => r.layerSlug === b.layerSlug);
     return ai - bi;
   });
+
+  // Fetch threat metadata for each guardrail via its source rules
+  const result: GuardrailForExport[] = [];
+  for (const g of deduped) {
+    let threats: ThreatMeta[] = [];
+    if (g.sourceRuleIds.length > 0) {
+      threats = await db
+        .selectDistinctOn([threat.publicId], {
+          cveId: threat.cveId,
+          severity: threat.severity,
+          name: threat.name,
+        })
+        .from(ruleThreatMap)
+        .innerJoin(threat, eq(ruleThreatMap.threatId, threat.publicId))
+        .where(inArray(ruleThreatMap.ruleId, g.sourceRuleIds))
+        .orderBy(
+          threat.publicId,
+          sql`CASE ${threat.severity} WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`
+        );
+    }
+    result.push({
+      layerSlug: g.layerSlug,
+      layerName: g.layerName,
+      content: g.content,
+      sourceRuleIds: g.sourceRuleIds,
+      threats,
+    });
+  }
+  return result;
 }

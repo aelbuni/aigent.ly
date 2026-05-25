@@ -1,4 +1,4 @@
-import { listGuardrailsForComposerExport, listRulesForComposerExport } from "../repos/rulesRepo.js";
+import { type GuardrailForExport, listGuardrailsForComposerExport, listRulesForComposerExport } from "../repos/rulesRepo.js";
 
 export type ComposerExportInput = {
   stackSlug: string;
@@ -58,14 +58,22 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
       description: `${input.stackSlug} security guardrails — ${layerCount} layer${layerCount !== 1 ? "s" : ""}`,
       alwaysApply: true,
     });
-    // Each guardrail is a self-contained section; join with a separator.
-    const body = guardrails
-      .map((g) => g.content.trim())
-      .join("\n\n---\n\n");
+    const body = guardrails.map((g) => g.content.trim()).join("\n\n---\n\n");
     return {
       format: "markdown" as const,
       content: `${fm}${body}\n`,
       filename,
+      // Threat metadata per layer — used by the Composer UI to show CVE counts
+      layers: guardrails.map((g) => ({
+        layerSlug: g.layerSlug,
+        layerName: g.layerName,
+        threatCount: g.threats.length,
+        threats: g.threats.slice(0, 30).map((t) => ({
+          cveId: t.cveId ?? null,
+          severity: t.severity ?? null,
+          name: t.name,
+        })),
+      })),
     };
   }
 

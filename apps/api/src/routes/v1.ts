@@ -611,6 +611,28 @@ export async function registerV1Routes(app: FastifyInstance) {
               format: { type: "string", enum: ["markdown"] },
               content: { type: "string" },
               filename: { type: "string" },
+              layers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    layerSlug: { type: "string" },
+                    layerName: { type: "string" },
+                    threatCount: { type: "integer" },
+                    threats: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          cveId: { type: "string", nullable: true },
+                          severity: { type: "string", nullable: true },
+                          name: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           400: {
