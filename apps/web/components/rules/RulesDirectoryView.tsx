@@ -152,20 +152,6 @@ function RulesFilterNav({
   );
 }
 
-function StarRow({ n }: { n: number }) {
-  return (
-    <div className="flex gap-0.5 text-tertiary-container" aria-label={`${n} of 5 stars`}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <MaterialSymbol
-          key={i}
-          name="star"
-          fill={i < n}
-          className={`!text-lg ${i < n ? "text-tertiary-container" : "text-outline opacity-35"}`}
-        />
-      ))}
-    </div>
-  );
-}
 
 export function RulesDirectoryView({
   stacks,
@@ -346,7 +332,6 @@ export function RulesDirectoryView({
                     <MaterialSymbol name="gavel" className="text-primary" />
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <StarRow n={r.stars} />
                     {r.certified ? (
                       <span className="flex items-center gap-1 rounded bg-primary-fixed px-2 py-0.5 font-mono-label text-on-primary-fixed">
                         <MaterialSymbol name="verified" className="!text-sm" />

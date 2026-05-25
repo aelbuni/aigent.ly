@@ -172,10 +172,6 @@ export default async function StackOverviewPage({
             <div>
               <div className="mb-1 flex flex-wrap items-center gap-3">
                 <h1 className="text-h1 font-h1 text-on-surface">{detail.name} security posture</h1>
-                <div className="flex items-center gap-2 rounded border border-tertiary bg-tertiary-container px-3 py-1 font-mono-data text-xl text-on-tertiary-container">
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-on-tertiary-container" />
-                  {overview.scoreLabel}
-                </div>
               </div>
               <p className="max-w-2xl text-body-base text-on-surface-variant">{overview.intro}</p>
               {detail.ruleCount != null && detail.ruleCount > 0 ? (

@@ -28,15 +28,6 @@ function getLayerName(l: unknown): string {
   return (l as { name: string }).name ?? "";
 }
 
-function StrengthBar({ score }: { score: number }) {
-  const color =
-    score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-400" : "bg-red-400";
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
-    </div>
-  );
-}
 
 type Props = {
   allCards: RuleDirectoryCard[];
@@ -106,10 +97,9 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
       </header>
 
       {/* Stats row */}
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           { label: "Total rules", value: stats.totalRules },
-          { label: "Rule depth", value: stats.avgStrength },
           { label: "Layers covered", value: stats.layersCovered },
           { label: "Stacks covered", value: stats.stacksCovered },
         ].map((s) => (
@@ -283,15 +273,6 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
                     </div>
                   )}
 
-                  {/* Strength score */}
-                  {(card as { strengthScore?: number }).strengthScore !== undefined && (
-                    <div className="mt-2">
-                      <StrengthBar score={(card as { strengthScore?: number }).strengthScore ?? 0} />
-                      <div className="mt-1 text-right font-mono-data text-xs text-on-surface-variant">
-                        {(card as { strengthScore?: number }).strengthScore ?? 0}
-                      </div>
-                    </div>
-                  )}
 
                   <div className="mt-2 flex flex-wrap gap-1">
                     {card.tags.slice(0, 3).map((t) => (
