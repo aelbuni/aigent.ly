@@ -128,13 +128,71 @@ After any DB reset or new environment setup: go to `/admin/sources` → "Load re
 
 ---
 
+## Composer Export Rule
+
+**The Composer export runs inside `apps/web` — no external API service required.**
+
+`postComposerExportAction` in `apps/web/app/actions/api-data.ts` calls `@/lib/composer-export` directly (Drizzle → DB). Do NOT add back an HTTP call to `INTERNAL_API_URL` for the export endpoint. The `apps/api` Fastify service is only needed locally for admin summarizer stream and health check — it is not deployed to production.
+
+---
+
+## Stack Catalog Status Rule
+
+**Only set `catalogStatus = 'launch'` when a stack has summarized guardrails.** The 6 launch stacks are: nextjs, express, fastapi, nestjs, nuxt, react-spa. Django, Rails, Go, iOS, Android are `coming_soon` — no rules exist for them yet.
+
+When a new stack is added:
+1. Set `catalogStatus = 'coming_soon'` initially
+2. Seed rules (`apps/web/scripts/seed.ts`)
+3. Run `MODE=all npm run summarize:layers` to generate guardrails
+4. Only then flip to `catalogStatus = 'launch'`
+
+---
+
+## Layer Assignment Rule
+
+**Deps rules (`-security-deps-v*`) must only be assigned to `dependency_supply`.** Never assign them to `auth_session`. Cross-assigning floods the auth guardrail with package version advisories instead of session/auth patterns.
+
+```typescript
+// In seed.ts — keep this separation:
+const patternLayers = ["auth_session", "input_validation", "authz_access", "secrets_credentials"];
+const depsLayers = ["dependency_supply"]; // NOT auth_session
+```
+
+---
+
+## Guardrail Prompt Rule
+
+**Guardrail prompts must use WHEN/THEN/ELSE behavioral contracts, not passive reminders.**
+
+- BAD: "ALWAYS use parameterized queries."
+- GOOD: "WHEN generating any SQL query, THEN use parameterized syntax. If not possible, STOP and explain."
+
+After any change to `apps/web/lib/summarizer/prompt.ts`, run `MODE=all npm run summarize:layers` to regenerate all guardrails.
+
+---
+
+## Admin Auth Rule
+
+**Admin is protected by GitHub OAuth + DB role check.** `ADMIN_BYPASS` must be `false` in production.
+
+- `ADMIN_BYPASS=true` in `.env` bypasses all auth (local dev only — never deploy with this)
+- Role = 'admin' required in the `user` DB table
+- To grant admin: `UPDATE "user" SET role = 'admin' WHERE email = '...'`
+- The bypass is safe only when `NODE_ENV !== 'production'` — the middleware enforces this
+
+---
+
 ## Key Files
 
 ```
 apps/web/lib/admin-queries.ts              # All admin DB queries
+apps/web/lib/catalog-from-db.ts            # All marketing/public DB queries (incl. composer export)
+apps/web/lib/composer-export.ts            # Composer file builder (no API dependency)
 apps/web/components/nextadmin/             # Admin UI framework
 packages/db/src/schema.ts                  # DB schema (source of truth for column names)
 apps/web/features/admin-*/actions/         # Server actions (one dir per entity)
+apps/web/scripts/seed.ts                   # Rule + layer assignment seeding
+apps/web/lib/summarizer/prompt.ts          # Guardrail summarizer prompts
 .github/workflows/sync-threats.yml         # Daily pipeline
 .claude/skills/aigently-project/SKILL.md   # Full engineering context
 ```

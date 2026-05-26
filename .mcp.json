@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "aigently": {
+      "command": "node",
+      "args": ["/Users/aelbuni/Projects/aelbuni/aigently-catalog/packages/mcp-server/dist/index.js"],
+      "env": {
+        "AIGENTLY_TARGET_IDE": "claude-code"
+      }
+    }
+  }
+}

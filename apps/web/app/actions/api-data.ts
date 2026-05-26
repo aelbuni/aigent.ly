@@ -143,25 +143,16 @@ export async function postComposerExportAction(body: {
   layers?: string[];
   mode?: "rule" | "skill";
 }) {
-  const client = await getServerApiClient();
-  if (!client) {
-    return { ok: false as const, error: "API not configured (INTERNAL_API_URL)." };
+  try {
+    const { buildComposerMarkdownExport, buildSkillMdExport } = await import("@/lib/composer-export");
+    const input = { stackSlug: body.stackSlug, ideSlug: body.ideSlug, layers: body.layers ?? [] };
+    const result =
+      body.mode === "skill" && body.ideSlug === "claude-code"
+        ? await buildSkillMdExport(input)
+        : await buildComposerMarkdownExport(input);
+    return { ok: true as const, data: result };
+  } catch (err) {
+    console.error("[postComposerExportAction]", err);
+    return { ok: false as const, error: "Export failed." };
   }
-  const res = await tryInternal(
-    () =>
-      client.POST("/v1/composer/export", {
-        body: {
-          stackSlug: body.stackSlug,
-          ideSlug: body.ideSlug,
-          layers: body.layers?.length
-            ? (body.layers as ("security" | "architecture" | "code_quality")[])
-            : undefined,
-        },
-      }),
-    null
-  );
-  if (!res?.data) {
-    return { ok: false as const, error: "Export failed or API unreachable." };
-  }
-  return { ok: true as const, data: res.data };
 }

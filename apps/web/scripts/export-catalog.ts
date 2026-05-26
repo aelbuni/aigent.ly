@@ -7,8 +7,10 @@ import { eq } from "drizzle-orm";
 
 import {
   db,
+  ide,
   pool,
   rule,
+  ruleIde,
   ruleStack,
   ruleThreatMap,
   stack,
@@ -103,8 +105,14 @@ async function main() {
     .select({ ruleId: ruleThreatMap.ruleId, threatId: ruleThreatMap.threatId })
     .from(ruleThreatMap);
 
+  const ruleIdeRows = await db
+    .select({ ruleId: ruleIde.ruleId, ideSlug: ide.slug })
+    .from(ruleIde)
+    .innerJoin(ide, eq(ruleIde.ideId, ide.id));
+
   const ruleStackMap   = new Map<string, string[]>();
   const ruleThreatMapJ = new Map<string, string[]>();
+  const ruleIdeMapJ    = new Map<string, string[]>();
 
   for (const row of ruleStackRows) {
     const slugs = ruleStackMap.get(row.ruleId) ?? [];
@@ -116,10 +124,16 @@ async function main() {
     ids.push(row.threatId);
     ruleThreatMapJ.set(row.ruleId, ids);
   }
+  for (const row of ruleIdeRows) {
+    const slugs = ruleIdeMapJ.get(row.ruleId) ?? [];
+    slugs.push(row.ideSlug);
+    ruleIdeMapJ.set(row.ruleId, slugs);
+  }
 
   const rules = ruleRows.map(r => ({
     ...r,
-    stacks:    ruleStackMap.get(r.id)    ?? [],
+    stacks:    ruleStackMap.get(r.id)   ?? [],
+    ides:      ruleIdeMapJ.get(r.id)    ?? [],  // empty = applies to all IDEs
     threatIds: ruleThreatMapJ.get(r.id) ?? [],
   }));
 

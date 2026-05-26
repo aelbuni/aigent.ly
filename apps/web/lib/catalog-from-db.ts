@@ -10,10 +10,12 @@ import {
   policyTemplate,
   policyTemplateStack,
   rule,
+  ruleIde,
   ruleLayerMap,
   ruleStack,
   ruleThreatMap,
   stack,
+  summarizedGuardrail,
   syncLog,
   threat,
   threatStack,
@@ -880,4 +882,133 @@ export async function listTopThreatsForHomepage(limit = 10): Promise<HomeThreatR
     if (!entry.stackNames.includes(r.stackName)) entry.stackNames.push(r.stackName);
   }
   return [...map.values()].slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Composer export queries — used by postComposerExportAction (no API service needed)
+// ---------------------------------------------------------------------------
+
+export type ThreatMeta = {
+  cveId: string | null;
+  severity: string | null;
+  name: string;
+  sourceUrl: string | null;
+};
+
+export type GuardrailForExport = {
+  layerSlug: string;
+  layerName: string;
+  content: string;
+  sourceRuleIds: string[];
+  threats: ThreatMeta[];
+};
+
+export async function listRulesForComposerExport(
+  stackSlug: string,
+  ideSlug: string,
+  layerSlugs: string[]
+) {
+  const whereBase = and(eq(stack.slug, stackSlug), eq(ide.slug, ideSlug));
+
+  const candidates = await db
+    .select({
+      id: rule.id,
+      slug: rule.slug,
+      name: rule.name,
+      description: rule.description,
+      version: rule.version,
+      certified: rule.certified,
+      lineCount: rule.lineCount,
+      bodyMdx: rule.bodyMdx,
+    })
+    .from(rule)
+    .innerJoin(ruleStack, eq(ruleStack.ruleId, rule.id))
+    .innerJoin(stack, eq(stack.id, ruleStack.stackId))
+    .innerJoin(ruleIde, eq(ruleIde.ruleId, rule.id))
+    .innerJoin(ide, eq(ide.id, ruleIde.ideId))
+    .where(whereBase)
+    .orderBy(asc(rule.slug));
+
+  if (layerSlugs.length === 0) return candidates;
+
+  const ruleIds = candidates.map((c) => c.id);
+  if (ruleIds.length === 0) return [];
+
+  const layerRows = await db
+    .select({ ruleId: ruleLayerMap.ruleId, layerSlug: layer.slug })
+    .from(ruleLayerMap)
+    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
+    .where(and(inArray(ruleLayerMap.ruleId, ruleIds), inArray(layer.slug, layerSlugs)));
+
+  const byRule = new Map<string, Set<string>>();
+  for (const row of layerRows) {
+    let set = byRule.get(row.ruleId);
+    if (!set) { set = new Set(); byRule.set(row.ruleId, set); }
+    set.add(row.layerSlug);
+  }
+
+  return candidates.filter((c) => {
+    const got = byRule.get(c.id);
+    if (!got) return false;
+    for (const l of layerSlugs) { if (got.has(l)) return true; }
+    return false;
+  });
+}
+
+export async function listGuardrailsForComposerExport(
+  stackSlug: string,
+  layerSlugs: string[]
+): Promise<GuardrailForExport[]> {
+  if (layerSlugs.length === 0) return [];
+
+  const rows = await db
+    .select({
+      layerSlug: layer.slug,
+      layerName: layer.name,
+      content: summarizedGuardrail.content,
+      sourceRuleIds: summarizedGuardrail.sourceRuleIds,
+      generatedAt: summarizedGuardrail.generatedAt,
+    })
+    .from(summarizedGuardrail)
+    .innerJoin(stack, eq(stack.id, summarizedGuardrail.stackId))
+    .innerJoin(layer, eq(layer.id, summarizedGuardrail.layerId))
+    .where(and(eq(stack.slug, stackSlug), inArray(layer.slug, layerSlugs)))
+    .orderBy(asc(layer.sortOrder));
+
+  // Deduplicate: keep newest guardrail per layer slug
+  const seen = new Map<string, typeof rows[number]>();
+  for (const row of rows) {
+    const existing = seen.get(row.layerSlug);
+    if (!existing || (row.generatedAt && existing.generatedAt && row.generatedAt > existing.generatedAt)) {
+      seen.set(row.layerSlug, row);
+    }
+  }
+  const deduped = [...seen.values()].sort((a, b) => {
+    const ai = rows.findIndex((r) => r.layerSlug === a.layerSlug);
+    const bi = rows.findIndex((r) => r.layerSlug === b.layerSlug);
+    return ai - bi;
+  });
+
+  const result: GuardrailForExport[] = [];
+  for (const g of deduped) {
+    let threats: ThreatMeta[] = [];
+    if (g.sourceRuleIds.length > 0) {
+      threats = await db
+        .selectDistinctOn([threat.publicId], {
+          cveId: threat.cveId,
+          severity: threat.severity,
+          name: threat.name,
+          sourceUrl: threat.sourceUrl,
+        })
+        .from(ruleThreatMap)
+        .innerJoin(threat, eq(ruleThreatMap.threatId, threat.publicId))
+        .where(inArray(ruleThreatMap.ruleId, g.sourceRuleIds))
+        .orderBy(
+          threat.publicId,
+          sql`CASE ${threat.severity} WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`
+        );
+    }
+    result.push({ layerSlug: g.layerSlug, layerName: g.layerName, content: g.content, sourceRuleIds: g.sourceRuleIds, threats });
+  }
+  return result;
 }
