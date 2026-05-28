@@ -32,17 +32,15 @@ function getLayerName(l: unknown): string {
 type Props = {
   allCards: RuleDirectoryCard[];
   stacks: Stack[];
-  layers: LayerWithStats[];
-  stats: { totalRules: number; layersCovered: number; stacksCovered: number; avgStrength: number };
+  stats: { totalRules: number; stacksCovered: number; avgStrength: number };
 };
 
-export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
+export function ExploreClient({ allCards, stacks, stats }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const activeLayer = searchParams.get("layer") ?? "";
   const activeType = searchParams.get("type") ?? "";
   const activeStack = searchParams.get("stack") ?? "";
   const q = searchParams.get("q") ?? "";
@@ -82,9 +80,9 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
       types: [],
       classification: activeType === "deps" ? "deps" : activeType === "pattern" ? "patterns" : "all",
       protect: [],
-      layers: activeLayer ? [activeLayer] : [],
+      layers: [],
     });
-  }, [allCards, activeLayer, activeType, activeStack, q]);
+  }, [allCards, activeType, activeStack, q]);
 
   return (
     <main className="mx-auto max-w-7xl px-gutter py-10">
@@ -100,8 +98,8 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           { label: "Total rules", value: stats.totalRules },
-          { label: "Layers covered", value: stats.layersCovered },
           { label: "Stacks covered", value: stats.stacksCovered },
+          { label: "Avg strength", value: stats.avgStrength },
         ].map((s) => (
           <div
             key={s.label}
@@ -130,36 +128,6 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
           />
         </div>
 
-        {/* Layer pills */}
-        <div className="flex flex-wrap gap-2">
-          <span className="self-center text-xs text-on-surface-variant">Layer:</span>
-          <button
-            onClick={() => setParam("layer", "")}
-            className={`rounded-full px-3 py-1 text-xs transition-colors ${
-              !activeLayer
-                ? "bg-primary text-white"
-                : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
-            }`}
-          >
-            All
-          </button>
-          {layers.map((l) => (
-            <button
-              key={l.slug}
-              onClick={() => setParam("layer", activeLayer === l.slug ? "" : l.slug)}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                activeLayer === l.slug
-                  ? "bg-primary text-white"
-                  : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
-              }`}
-            >
-              {l.name}
-              {l.ruleCount > 0 && (
-                <span className="ml-1.5 opacity-70">×{l.ruleCount}</span>
-              )}
-            </button>
-          ))}
-        </div>
 
         {/* Type + Stack row */}
         <div className="flex flex-wrap gap-4">
@@ -222,7 +190,7 @@ export function ExploreClient({ allCards, stacks, layers, stats }: Props) {
       {/* Results count */}
       <div className="mb-4 text-sm text-on-surface-variant">
         {filteredCards.length} rule{filteredCards.length !== 1 ? "s" : ""}
-        {(activeLayer || activeType || activeStack || q) && (
+        {(activeType || activeStack || q) && (
           <button
             onClick={() => startTransition(() => router.replace("/explore", { scroll: false }))}
             className="ml-3 text-primary hover:underline"

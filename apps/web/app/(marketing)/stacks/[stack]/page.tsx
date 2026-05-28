@@ -7,7 +7,6 @@ import { MaterialSymbol } from "@/components/MaterialSymbol";
 import {
   getStackDetailFromDb,
   getStackOverviewFromDb,
-  listLayersWithStatsFromDb,
 } from "@/lib/catalog-from-db";
 import { mergeStackOverviewFromApi, severityChipClass } from "@/lib/stack-overview-content";
 import { getServerApiClient, tryInternal } from "@/lib/server-api";
@@ -68,11 +67,6 @@ export default async function StackOverviewPage({
   const overview = mergeStackOverviewFromApi(detail.slug, apiOverview);
   const rulesHref = `/rules?stack=${encodeURIComponent(detail.slug)}`;
 
-  let stackLayers: Awaited<ReturnType<typeof listLayersWithStatsFromDb>> = [];
-  try {
-    const allLayers = await listLayersWithStatsFromDb();
-    stackLayers = allLayers.filter((l) => l.ruleCount > 0);
-  } catch { /* non-critical */ }
   const criticalPad = String(overview.criticalCount).padStart(2, "0");
   const highPad = String(overview.highCount).padStart(2, "0");
 
@@ -285,47 +279,39 @@ export default async function StackOverviewPage({
               </div>
             ) : null}
 
-            {stackLayers.length > 0 && (
-              <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
-                <h3 className="mb-4 font-mono-label text-primary">Coverage by protection layer</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-outline-variant text-left font-mono-label text-xs text-on-surface-variant">
-                        <th className="pb-2 pr-4">Layer</th>
-                        <th className="pb-2 pr-4">Rules</th>
-                        <th className="pb-2">Explore</th>
+            <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
+              <h3 className="mb-4 font-mono-label text-primary">Rule coverage</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-outline-variant text-left font-mono-label text-xs text-on-surface-variant">
+                      <th className="pb-2 pr-4">Type</th>
+                      <th className="pb-2 pr-4">Description</th>
+                      <th className="pb-2">Explore</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { type: "patterns", label: "Security patterns", desc: "ALWAYS/NEVER safe-coding directives" },
+                      { type: "deps",     label: "Dependency alerts", desc: "CVE advisories for this stack's packages" },
+                    ].map((row) => (
+                      <tr key={row.type} className="border-b border-outline-variant/50 last:border-0">
+                        <td className="py-2 pr-4 text-on-surface">{row.label}</td>
+                        <td className="py-2 pr-4 text-on-surface-variant">{row.desc}</td>
+                        <td className="py-2">
+                          <Link
+                            href={`/explore?stack=${detail.slug}&type=${row.type}`}
+                            className="font-mono-label text-xs text-primary hover:underline"
+                          >
+                            Explore →
+                          </Link>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {stackLayers.map((l) => (
-                        <tr key={l.slug} className="border-b border-outline-variant/50 last:border-0">
-                          <td className="py-2 pr-4">
-                            <Link
-                              href={`/layers/${l.slug}`}
-                              className="text-on-surface hover:text-primary hover:underline"
-                            >
-                              {l.name}
-                            </Link>
-                          </td>
-                          <td className="py-2 pr-4 font-mono-data text-on-surface-variant">
-                            {l.ruleCount}
-                          </td>
-                          <td className="py-2">
-                            <Link
-                              href={`/explore?stack=${detail.slug}&layer=${l.slug}`}
-                              className="font-mono-label text-xs text-primary hover:underline"
-                            >
-                              Explore →
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </main>

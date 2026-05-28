@@ -31,14 +31,12 @@ export async function scoreAndRegenerate(
     .select({
       id: summarizedGuardrail.id,
       stackId: summarizedGuardrail.stackId,
-      layerId: summarizedGuardrail.layerId,
+      contentType: summarizedGuardrail.contentType,
       qualityScore: summarizedGuardrail.qualityScore,
       stackSlug: stack.slug,
-      layerSlug: layer.slug,
     })
     .from(summarizedGuardrail)
     .innerJoin(stack, eq(summarizedGuardrail.stackId, stack.id))
-    .innerJoin(layer, eq(summarizedGuardrail.layerId, layer.id))
     .where(eq(summarizedGuardrail.id, id))
     .limit(1);
 
@@ -52,13 +50,15 @@ export async function scoreAndRegenerate(
       .where(eq(summarizedGuardrail.id, id));
   }
 
-  // Stage 1: amplify un-amplified threats linked to this layer's rules
-  await amplifyThreatsForLayer(row.stackSlug, row.layerSlug);
-  // Stage 2: summarize any unsummarized security-pattern rules for this stack
+  // Use a representative layer slug for the summarizer call
+  const layerSlug = row.contentType === "deps" ? "dependency_supply" : "auth_session";
+  // Stage 1: amplify un-amplified threats linked to this rule type's rules
+  await amplifyThreatsForLayer(row.stackSlug, layerSlug);
+  // Stage 2: summarize any unsummarized rules for this stack
   await summarizeRulesForStack(row.stackSlug);
   // Stage 3: force-regenerate (bypass cache — rule bodies may be unchanged)
   const previousScore = overrideScore ?? row.qualityScore ?? undefined;
-  await runSummarizerForLayer(row.stackSlug, row.layerSlug, "all", previousScore, true);
+  await runSummarizerForLayer(row.stackSlug, layerSlug, row.contentType, previousScore, true);
 
   revalidatePath("/admin/guardrails");
   revalidatePath("/admin/guardrails/evaluation");

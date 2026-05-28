@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
 import { MaterialSymbol } from "@/components/MaterialSymbol";
 import {
-  listLayersForStackAction,
   postComposerExportAction,
 } from "@/app/actions/api-data";
 
@@ -12,7 +11,6 @@ import {
 
 type Stack = { id: number; slug: string; name: string; logoPath?: string | null; sortOrder: number; catalogStatus: string };
 type Ide = { id: number; slug: string; name: string; sortOrder: number };
-type LayerRow = { id: string; slug: string; name: string; description: string; concernStatement: string; iconName: string | null; colorToken: string | null; isSystem: boolean; isActive: boolean; sortOrder: number; ruleCount: number };
 
 type ClaudeMode = "claude-md" | "skill-md";
 
@@ -71,48 +69,23 @@ function getFileHint(ideSlug: string, stack: string, claudeMode: ClaudeMode): st
 
 // ─── Layer tier config ────────────────────────────────────────────────────────
 
-const LAYER_TIERS = [
-  {
-    label: "Core",
-    tier: "core",
-    slugs: ["auth_session", "authz_access", "input_validation", "secrets_credentials", "dependency_supply", "data_privacy"],
-  },
-  {
-    label: "Infrastructure",
-    tier: "infrastructure",
-    slugs: ["api_security", "database", "infrastructure", "caching_cdn", "frontend_network"],
-  },
-  {
-    label: "Operational",
-    tier: "operational",
-    slugs: ["observability", "resilience", "ai_safety", "code_quality"],
-  },
-] as const;
-
-type TierKey = typeof LAYER_TIERS[number]["tier"];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ComposerPageClient({
   initialStacks,
   initialIdes,
-  initialLayers,
 }: {
   initialStacks: Stack[];
   initialIdes: Ide[];
-  initialLayers: LayerRow[];
 }) {
   const [stackSlug, setStackSlug] = useState(initialStacks[0]?.slug ?? "");
   const [ideSlug, setIdeSlug] = useState(initialIdes[0]?.slug ?? "");
   const [claudeMode, setClaudeMode] = useState<ClaudeMode>("claude-md");
-  const [layers, setLayers] = useState<LayerRow[]>(initialLayers);
-  const [selectedLayers, setSelectedLayers] = useState<Set<string>>(() => new Set(initialLayers.map((l) => l.slug)));
-  const [expandedTiers, setExpandedTiers] = useState<Set<TierKey>>(new Set(["core", "infrastructure", "operational"]));
+  const [selectedRuleType, setSelectedRuleType] = useState<"all" | "patterns" | "deps">("all");
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  type ThreatMeta = { cveId: string | null; severity: string | null; name: string; sourceUrl?: string | null };
-  type LayerMeta = { layerSlug: string; layerName: string; threatCount: number; threats: ThreatMeta[] };
-  const [preview, setPreview] = useState<{ content: string; filename: string; layers?: LayerMeta[] } | null>(null);
+  const [preview, setPreview] = useState<{ content: string; filename: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -121,53 +94,13 @@ export function ComposerPageClient({
   const stackName = useMemo(() => initialStacks.find((s) => s.slug === stackSlug)?.name ?? stackSlug, [initialStacks, stackSlug]);
   const fileHint = useMemo(() => getFileHint(ideSlug, stackSlug, claudeMode), [ideSlug, stackSlug, claudeMode]);
 
-  const layersBySlug = useMemo(() => new Map(layers.map((l) => [l.slug, l])), [layers]);
-
-  // Only layers with rules matter for selection/counts
-  const allLayerSlugs = useMemo(() => layers.filter((l) => l.ruleCount > 0).map((l) => l.slug), [layers]);
-  const allSelected = allLayerSlugs.length > 0 && allLayerSlugs.every((s) => selectedLayers.has(s));
-
   // ── Stack selection ───────────────────────────────────────────────────────────
 
-  const selectStack = useCallback(async (slug: string) => {
+  const selectStack = useCallback((slug: string) => {
     setStackSlug(slug);
     setStatus(null);
     setPreview(null);
-    const fetched = await listLayersForStackAction(slug);
-    const next = fetched.length > 0 ? fetched : layers;
-    setLayers(next);
-    setSelectedLayers(new Set(next.map((l) => l.slug)));
-  }, [layers]);
-
-  // ── Layer toggles ─────────────────────────────────────────────────────────────
-
-  function toggleLayer(slug: string) {
-    setSelectedLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
-      return next;
-    });
-    setPreview(null);
-  }
-
-  function toggleAll() {
-    if (allSelected) {
-      setSelectedLayers(new Set());
-    } else {
-      setSelectedLayers(new Set(allLayerSlugs));
-    }
-    setPreview(null);
-  }
-
-  function toggleTier(tier: TierKey) {
-    setExpandedTiers((prev) => {
-      const next = new Set(prev);
-      if (next.has(tier)) next.delete(tier);
-      else next.add(tier);
-      return next;
-    });
-  }
+  }, []);
 
   // ── Export ────────────────────────────────────────────────────────────────────
 
@@ -178,9 +111,8 @@ export function ComposerPageClient({
     }
     setExporting(true);
     setStatus(null);
-    const layersParam = selectedLayers.size > 0 ? [...selectedLayers] : allLayerSlugs;
     const mode = ideSlug === "claude-code" && claudeMode === "skill-md" ? "skill" : "rule";
-    const res = await postComposerExportAction({ stackSlug, ideSlug, layers: layersParam, mode });
+    const res = await postComposerExportAction({ stackSlug, ideSlug, ruleType: selectedRuleType, mode });
     setExporting(false);
     if (!res.ok) {
       setStatus(res.error);
@@ -189,7 +121,6 @@ export function ComposerPageClient({
     setPreview({
       content: res.data.content,
       filename: res.data.filename,
-      layers: (res.data as { layers?: LayerMeta[] }).layers,
     });
     setStatus(null);
     setShowSuccess(true);
@@ -318,81 +249,38 @@ export function ComposerPageClient({
             )}
           </Section>
 
-          {/* 03 Layers */}
-          <Section step="03" title="Protection Layers">
-            <div className="space-y-4">
-              {/* Select all toggle */}
-              <div className="flex items-center justify-between">
-                <span className="font-body-sm text-on-surface-variant">
-                  {selectedLayers.size === 0
-                    ? `All ${allLayerSlugs.length} layers included`
-                    : `${selectedLayers.size} of ${allLayerSlugs.length} layers selected`}
-                </span>
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  className="font-mono-label text-xs text-primary hover:underline"
+          {/* 03 Rule Type */}
+          <Section step="03" title="Rule Type">
+            <div className="space-y-2">
+              {(
+                [
+                  { value: "all",      label: "Both",         description: "Secure coding patterns + dependency alerts" },
+                  { value: "patterns", label: "Patterns only", description: "ALWAYS/NEVER safe-coding directives — no dependency edits" },
+                  { value: "deps",     label: "Deps only",     description: "Dependency vulnerability advisories — requires confirmation before upgrades" },
+                ] as const
+              ).map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                    selectedRuleType === opt.value
+                      ? "border-primary bg-primary/5"
+                      : "border-outline-variant hover:bg-surface-container-low"
+                  }`}
                 >
-                  {allSelected ? "Deselect all" : "Select all"}
-                </button>
-              </div>
-
-              {/* Tier groups — only render tiers and layers that have rules */}
-              {LAYER_TIERS.map((tier) => {
-                const tierLayers = tier.slugs
-                  .map((slug) => layersBySlug.get(slug))
-                  .filter((l): l is LayerRow => !!l && l.ruleCount > 0);
-                // Skip the entire tier section if no layers have rules
-                if (tierLayers.length === 0) return null;
-                const isExpanded = expandedTiers.has(tier.tier);
-                const selectedInTier = tierLayers.filter((l) => selectedLayers.has(l.slug)).length;
-
-                return (
-                  <div key={tier.tier} className="rounded-lg border border-outline-variant overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => toggleTier(tier.tier)}
-                      className="flex w-full items-center justify-between bg-surface-container-low px-4 py-3 text-left hover:bg-surface-container transition-colors"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="font-mono-label text-sm text-on-surface">{tier.label}</span>
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono-label text-xs text-primary">
-                          {selectedInTier}/{tierLayers.length}
-                        </span>
-                      </span>
-                      <MaterialSymbol
-                        name={isExpanded ? "expand_less" : "expand_more"}
-                        className="!text-base text-on-surface-variant"
-                      />
-                    </button>
-
-                    {isExpanded && (
-                      <div className="divide-y divide-outline-variant/50">
-                        {tierLayers.map((l) => (
-                          <label
-                            key={l.slug}
-                            className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-container-low"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedLayers.has(l.slug)}
-                              onChange={() => toggleLayer(l.slug)}
-                              className="rounded border-outline accent-primary"
-                            />
-                            <span className="flex-1 min-w-0">
-                              <span className="block font-mono-label text-sm text-on-surface truncate">{l.name}</span>
-                              <span className="block font-body-sm text-xs text-on-surface-variant truncate">{l.concernStatement}</span>
-                            </span>
-                            <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-mono-label text-xs text-primary">
-                              {l.ruleCount} rule{l.ruleCount !== 1 ? "s" : ""}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  <input
+                    type="radio"
+                    name="ruleType"
+                    value={opt.value}
+                    checked={selectedRuleType === opt.value}
+                    onChange={() => setSelectedRuleType(opt.value)}
+                    className="accent-primary"
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-mono-label text-sm text-on-surface">{opt.label}</span>
+                    <span className="block font-body-sm text-xs text-on-surface-variant">{opt.description}</span>
+                  </span>
+                </label>
+              ))}
             </div>
           </Section>
 
@@ -443,13 +331,11 @@ export function ComposerPageClient({
                     ? [
                         `# aigently-${stackSlug}-security${ideSlug === "cursor" ? ".mdc" : ".md"}`,
                         `# Aigent.ly guardrails for ${stackName} · ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}`,
-                        `# ${allLayerSlugs.length} security layer${allLayerSlugs.length !== 1 ? "s" : ""} · ${layers.reduce((n, l) => n + l.ruleCount, 0)} rules`,
-                        ``,
-                        ...allLayerSlugs.slice(0, 8).map((slug) => `## ${layersBySlug.get(slug)?.name ?? slug}`),
+                        `# ${selectedRuleType === "all" ? "patterns + deps" : selectedRuleType} rules`,
                         ``,
                         `→ Click "Generate file" to merge and export`,
                       ].join("\n")
-                    : `# Select stack, IDE, and layers\n# then click "Generate file"\n\nstack: …\nide: ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}`}
+                    : `# Select stack, IDE, and rule type\n# then click "Generate file"\n\nstack: …\nide: ${initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}`}
                 </span>
               )}
             </pre>
@@ -492,14 +378,9 @@ export function ComposerPageClient({
               <div className="grid grid-cols-2 gap-2">
                 <Stat label="Stack" value={stackName} />
                 <Stat label="IDE" value={initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug} />
-                <Stat label="Layers" value={String(preview.layers?.length ?? (selectedLayers.size || allLayerSlugs.length))} />
+                <Stat label="Type" value={selectedRuleType === "all" ? "patterns + deps" : selectedRuleType} />
                 <Stat label="File" value={preview.filename} mono />
               </div>
-
-              {/* Deduplicated unique threats across all selected layers */}
-              {preview.layers && preview.layers.some((l) => l.threatCount > 0) && (
-                <UniqueThreatsPanel layers={preview.layers} />
-              )}
             </div>
           )}
         </aside>

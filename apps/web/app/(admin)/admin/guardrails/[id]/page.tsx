@@ -36,11 +36,12 @@ async function requireAdmin() {
   if (session?.user?.role !== "admin") redirect("/");
 }
 
-async function regenerateAction(id: string, stackSlug: string, layerSlug: string) {
+async function regenerateAction(id: string, stackSlug: string, contentType: "patterns" | "deps") {
   "use server";
   await requireAdmin();
   await db.delete(summarizedGuardrail).where(eq(summarizedGuardrail.id, id));
-  await runSummarizerForLayer(stackSlug, layerSlug);
+  const layerSlug = contentType === "deps" ? "dependency_supply" : "auth_session";
+  await runSummarizerForLayer(stackSlug, layerSlug, contentType);
   revalidatePath("/admin/guardrails");
   revalidatePath(`/admin/guardrails/${id}`);
   redirect("/admin/guardrails");
@@ -76,12 +77,10 @@ export default async function GuardrailDetailPage({
       scoreNote: summarizedGuardrail.scoreNote,
       stackSlug: stack.slug,
       stackName: stack.name,
-      layerSlug: layer.slug,
-      layerName: layer.name,
+      contentType: summarizedGuardrail.contentType,
     })
     .from(summarizedGuardrail)
     .innerJoin(stack, eq(summarizedGuardrail.stackId, stack.id))
-    .innerJoin(layer, eq(summarizedGuardrail.layerId, layer.id))
     .where(eq(summarizedGuardrail.id, id))
     .limit(1);
 
@@ -104,10 +103,10 @@ export default async function GuardrailDetailPage({
 
       <AdminPageHeader
         title={row.stackName}
-        description={`${row.layerName} · Generated ${row.generatedAt.toLocaleString()} · v${row.summarizerVersion}`}
+        description={`${row.contentType} · Generated ${row.generatedAt.toLocaleString()} · v${row.summarizerVersion}`}
         action={
           <div className="flex gap-2">
-            <form action={regenerateAction.bind(null, row.id, row.stackSlug, row.layerSlug)}>
+            <form action={regenerateAction.bind(null, row.id, row.stackSlug, row.contentType)}>
               <button
                 type="submit"
                 className="border-stroke text-dark hover:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white inline-flex items-center gap-2 rounded border bg-white px-4 py-2.5 text-sm font-medium"

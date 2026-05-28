@@ -7,7 +7,7 @@ import {
 export type ComposerExportInput = {
   stackSlug: string;
   ideSlug: string;
-  layers: string[];
+  ruleType?: "all" | "patterns" | "deps";
 };
 
 function ideRuleFileExtension(ideSlug: string): "mdc" | "md" {
@@ -44,14 +44,13 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
   const ext = ideRuleFileExtension(input.ideSlug);
   const filename = `aigently-${input.stackSlug}-security.${ext}`;
 
-  // Primary path: per-layer AI-synthesized guardrails
-  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+  // Primary path: AI-synthesized guardrails by ruleType
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.ruleType ?? "all");
 
   if (guardrails.length > 0) {
-    const layerCount = guardrails.length;
     const fm = frontmatterBlock({
       ideSlug: input.ideSlug,
-      description: `${input.stackSlug} security guardrails — ${layerCount} layer${layerCount !== 1 ? "s" : ""}`,
+      description: `${input.stackSlug} security guardrails`,
       alwaysApply: true,
     });
     const body = guardrails.map((g: GuardrailForExport) => g.content.trim()).join("\n\n---\n\n");
@@ -72,27 +71,16 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
       format: "markdown" as const,
       content: `${fm}${header}${body}\n`,
       filename,
-      layers: guardrails.map((g: GuardrailForExport) => ({
-        layerSlug: g.layerSlug,
-        layerName: g.layerName,
-        threatCount: g.threats.length,
-        threats: g.threats.slice(0, 30).map((t) => ({
-          cveId: t.cveId ?? null,
-          severity: t.severity ?? null,
-          name: t.name,
-          sourceUrl: t.sourceUrl ?? null,
-        })),
-      })),
     };
   }
 
   // Fallback: raw rules
-  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.ruleType ?? "all");
 
   if (rules.length === 0) {
     return {
       format: "markdown" as const,
-      content: `<!-- No guardrails or rules found for ${input.stackSlug} with the selected layers. Run the summarize:layers pipeline to generate guardrails. -->\n`,
+      content: `<!-- No guardrails or rules found for ${input.stackSlug}. Run the synthesize:guardrails pipeline to generate guardrails. -->\n`,
       filename,
     };
   }
@@ -140,7 +128,7 @@ export async function buildSkillMdExport(input: ComposerExportInput & { stackNam
     "",
   ].join("\n");
 
-  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.ruleType ?? "all");
   if (guardrails.length > 0) {
     const body = guardrails.map((g: GuardrailForExport) => g.content.trim()).filter(Boolean).join("\n\n---\n\n");
     return {
@@ -150,11 +138,11 @@ export async function buildSkillMdExport(input: ComposerExportInput & { stackNam
     };
   }
 
-  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.ruleType ?? "all");
   if (rules.length === 0) {
     return {
       format: "markdown" as const,
-      content: `${frontmatter}<!-- No guardrails or rules found. Run summarize:layers to generate content. -->\n`,
+      content: `${frontmatter}<!-- No guardrails or rules found. Run synthesize:guardrails to generate content. -->\n`,
       filename: "SKILL.md",
     };
   }

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import {
-  listLayersWithStatsFromDb,
   listRulesDirectoryFromDb,
   listStacksFromDb,
   loadDirectoryFilterMeta,
@@ -14,15 +13,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Explore Guardrails | Aigent.ly",
   description:
-    "Browse and filter AI coding guardrails by protection layer, rule type, and stack. See coverage depth at a glance.",
+    "Browse and filter AI coding guardrails by rule type and stack. See coverage depth at a glance.",
 };
 
 export default async function ExplorePage() {
-  const [stackRows, layerRows] = await Promise.all([
-    listStacksFromDb().catch(() => []),
-    listLayersWithStatsFromDb().catch(() => []),
-  ]);
-
+  const stackRows = await listStacksFromDb().catch(() => []);
   const launchStacks = stackRows.filter((s) => s.catalogStatus === "launch");
 
   let allCards: RuleDirectoryCard[] = [];
@@ -47,11 +42,6 @@ export default async function ExplorePage() {
 
   const stats = {
     totalRules: allCards.length,
-    layersCovered: new Set(
-      allCards.flatMap((c) =>
-        (c.layers ?? []).map((l) => (typeof l === "string" ? l : (l as { slug: string }).slug))
-      )
-    ).size,
     stacksCovered: launchStacks.length,
     avgStrength: allCards.length
       ? Math.round(
@@ -65,7 +55,6 @@ export default async function ExplorePage() {
     <ExploreClient
       allCards={allCards}
       stacks={launchStacks}
-      layers={layerRows}
       stats={stats}
     />
   );

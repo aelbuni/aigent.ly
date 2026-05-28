@@ -55,8 +55,7 @@ export async function GET() {
     db.select({
       id: summarizedGuardrail.id,
       stackId: summarizedGuardrail.stackId,
-      layerId: summarizedGuardrail.layerId,
-      ideSlug: summarizedGuardrail.ideSlug,
+      contentType: summarizedGuardrail.contentType,
       content: summarizedGuardrail.content,
       sourceRuleIds: summarizedGuardrail.sourceRuleIds,
       conflictCount: summarizedGuardrail.conflictCount,
@@ -174,8 +173,7 @@ export async function GET() {
 
     guardrails: guardrailRows.map((g) => ({
       stackSlug: stackById.get(g.stackId) ?? null,
-      layerSlug: layerById.get(g.layerId) ?? null,
-      ideSlug: g.ideSlug,
+      contentType: g.contentType,
       content: g.content,
       sourceRuleSlugs: (g.sourceRuleIds ?? []).map((id) => ruleById.get(id) ?? id),
       conflictCount: g.conflictCount,
@@ -356,8 +354,8 @@ export async function POST(req: Request) {
   // 4. Upsert guardrails (skip on cacheKey conflict — don't overwrite newer)
   for (const g of snapshot.guardrails) {
     const stackId = g.stackSlug ? stackBySlug.get(g.stackSlug) : null;
-    const layerId = g.layerSlug ? layerBySlug.get(g.layerSlug) : null;
-    if (!stackId || !layerId) { counts.skipped++; continue; }
+    const contentType: "patterns" | "deps" = g.contentType === "deps" ? "deps" : "patterns";
+    if (!stackId) { counts.skipped++; continue; }
 
     const sourceRuleIds = (g.sourceRuleSlugs ?? [])
       .map((slug: string) => ruleBySlug.get(slug))
@@ -367,8 +365,7 @@ export async function POST(req: Request) {
       .insert(summarizedGuardrail)
       .values({
         stackId,
-        layerId,
-        ideSlug: g.ideSlug ?? "all",
+        contentType,
         content: g.content,
         sourceRuleIds,
         conflictCount: g.conflictCount ?? 0,
@@ -414,7 +411,7 @@ function parseSnapshot(data: unknown) {
       stacks?: string[]; layers?: string[]; threatIds?: string[];
     }[];
     guardrails: {
-      stackSlug?: string | null; layerSlug?: string | null; ideSlug?: string;
+      stackSlug?: string | null; contentType?: string;
       content: string; sourceRuleSlugs?: string[]; conflictCount?: number;
       cacheKey: string; summarizerVersion?: string; generatedAt?: string;
     }[];

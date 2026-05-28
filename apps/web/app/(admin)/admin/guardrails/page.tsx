@@ -59,20 +59,19 @@ async function generateGuardrailAction(fd: FormData) {
   "use server";
   await requireAdmin();
   const stackSlug = fd.get("stackSlug") as string;
-  const layerSlug = (fd.get("layerSlug") as string) || "";
+  const contentType = (fd.get("contentType") as "patterns" | "deps") || undefined;
   if (!stackSlug) return;
 
-  if (layerSlug) {
-    await runSummarizerForLayer(stackSlug, layerSlug, "all", undefined, true);
+  const layerSlugForType = (ct?: "patterns" | "deps") =>
+    ct === "deps" ? "dependency_supply" : "auth_session";
+
+  if (contentType) {
+    await runSummarizerForLayer(stackSlug, layerSlugForType(contentType), contentType, undefined, true);
   } else {
-    const layers = await db
-      .select({ slug: layer.slug })
-      .from(layer)
-      .where(eq(layer.isActive, true))
-      .orderBy(layer.sortOrder);
-    await Promise.allSettled(
-      layers.map((l) => runSummarizerForLayer(stackSlug, l.slug, "all", undefined, true))
-    );
+    await Promise.allSettled([
+      runSummarizerForLayer(stackSlug, "auth_session", "patterns", undefined, true),
+      runSummarizerForLayer(stackSlug, "dependency_supply", "deps", undefined, true),
+    ]);
   }
   revalidatePath("/admin/guardrails");
 }
@@ -87,10 +86,10 @@ export default async function GuardrailsPage({
   const stackFilter = params.stack?.trim() || undefined;
   const layerFilter = params.layer?.trim() || undefined;
 
-  const [{ rows, total }, allStacks, activeLayers, coverage, stackRuleCounts] = await Promise.all([
-    listGuardrails({ page, perPage: 25, stackSlug: stackFilter, layerSlug: layerFilter }),
+  const contentTypeFilter = (params.layer?.trim() as "patterns" | "deps" | undefined) || undefined;
+  const [{ rows, total }, allStacks, coverage, stackRuleCounts] = await Promise.all([
+    listGuardrails({ page, perPage: 25, stackSlug: stackFilter, contentType: contentTypeFilter }),
     db.select({ id: stack.id, slug: stack.slug, name: stack.name }).from(stack).orderBy(stack.sortOrder),
-    db.select({ id: layer.id, slug: layer.slug, name: layer.name }).from(layer).where(eq(layer.isActive, true)).orderBy(layer.sortOrder),
     getGuardrailCoverage(),
     db.selectDistinct({ stackId: ruleStack.stackId }).from(ruleStack),
   ]);
@@ -157,15 +156,14 @@ export default async function GuardrailsPage({
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-dark-6 text-xs font-medium">Layer <span className="text-dark-6 font-normal">(optional — blank = all active layers)</span></label>
+            <label className="text-dark-6 text-xs font-medium">Rule type <span className="text-dark-6 font-normal">(optional — blank = both)</span></label>
             <select
-              name="layerSlug"
+              name="contentType"
               className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-10 min-w-[220px] rounded border px-3 text-sm outline-none"
             >
-              <option value="">All active layers</option>
-              {activeLayers.map((l) => (
-                <option key={l.id} value={l.slug}>{l.name}</option>
-              ))}
+              <option value="">Both (patterns + deps)</option>
+              <option value="patterns">Patterns</option>
+              <option value="deps">Dependencies</option>
             </select>
           </div>
           <button
@@ -199,13 +197,12 @@ export default async function GuardrailsPage({
           <label className="text-dark-6 text-xs font-medium">Filter by layer</label>
           <select
             name="layer"
-            defaultValue={layerFilter ?? ""}
+            defaultValue={contentTypeFilter ?? ""}
             className="border-stroke bg-gray-2 text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white h-9 min-w-[180px] rounded border px-3 text-sm outline-none"
           >
-            <option value="">All layers</option>
-            {activeLayers.map((l) => (
-              <option key={l.id} value={l.slug}>{l.name}</option>
-            ))}
+            <option value="">All types</option>
+            <option value="patterns">Patterns</option>
+            <option value="deps">Dependencies</option>
           </select>
         </div>
         <button
@@ -246,7 +243,7 @@ export default async function GuardrailsPage({
                 <AdminTableRow key={g.id}>
                   <AdminPrimaryCell
                     title={g.stackName}
-                    subtitle={`${g.layerName} · v${g.summarizerVersion}${g.conflictCount > 0 ? ` · ${g.conflictCount} conflicts` : ""}`}
+                    subtitle={`${g.contentType} · v${g.summarizerVersion}${g.conflictCount > 0 ? ` · ${g.conflictCount} conflicts` : ""}`}
                     href={`/admin/guardrails/${g.id}`}
                   />
                   <AdminTableCell>

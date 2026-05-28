@@ -66,8 +66,7 @@ function buildProvenance(
 
 async function persistGuardrail(params: {
   stackId: number;
-  layerId: string;
-  ideSlug: string;
+  contentType: "patterns" | "deps";
   content: string;
   sourceRuleIds: string[];
   provenance: Record<string, ProvenanceEntry>;
@@ -76,12 +75,11 @@ async function persistGuardrail(params: {
   cacheKey: string;
   summarizerVersion: string;
 }): Promise<void> {
-  const { cacheKey, stackId, layerId, ideSlug, content, sourceRuleIds, provenance, conflictCount, qualityScore, summarizerVersion } = params;
+  const { cacheKey, stackId, contentType, content, sourceRuleIds, provenance, conflictCount, qualityScore, summarizerVersion } = params;
   await db.delete(summarizedGuardrail).where(eq(summarizedGuardrail.cacheKey, cacheKey));
   await db.insert(summarizedGuardrail).values({
     stackId,
-    layerId,
-    ideSlug,
+    contentType,
     content,
     sourceRuleIds,
     provenance,
@@ -192,10 +190,10 @@ export async function runSummarizerForLayer(
   });
 
   // Delete stale row if present, then insert fresh
+  const contentType: "patterns" | "deps" = ruleType === "deps" ? "deps" : "patterns";
   await persistGuardrail({
     stackId: stackRow.id,
-    layerId: layerRow.id,
-    ideSlug: "all",
+    contentType,
     content: summarizedContent,
     sourceRuleIds: rules.map((r) => r.id),
     provenance,
@@ -375,10 +373,10 @@ export async function runSummarizerForStack(
       generatedAt: new Date(),
     });
 
+    const batchContentType: "patterns" | "deps" = ruleType === "deps" ? "deps" : "patterns";
     await persistGuardrail({
       stackId: stackRow.id,
-      layerId: layerRow.id,
-      ideSlug: "all",
+      contentType: batchContentType,
       content: item.content,
       sourceRuleIds: rules.map((r) => r.id),
       provenance,
@@ -416,33 +414,23 @@ export async function runSummarizerForStack(
 export async function bulkRunSummarizer(
   mode: "empty" | "stale" | "all"
 ): Promise<{ generated: number; skipped: number; errors: string[] }> {
-  const pairs = await db
-    .selectDistinct({ stackSlug: stack.slug, layerSlug: layer.slug, stackId: stack.id, layerId: layer.id })
+  // Guardrails are now keyed by (stack, contentType). Discover stacks that have rules.
+  const stackRows = await db
+    .selectDistinct({ stackSlug: stack.slug, stackId: stack.id })
     .from(rule)
     .innerJoin(ruleStack, eq(ruleStack.ruleId, rule.id))
-    .innerJoin(stack, eq(stack.id, ruleStack.stackId))
-    .innerJoin(ruleLayerMap, eq(ruleLayerMap.ruleId, rule.id))
-    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
-    .where(eq(layer.isActive, true));
+    .innerJoin(stack, eq(stack.id, ruleStack.stackId));
 
+  const CONTENT_TYPES: Array<"patterns" | "deps"> = ["patterns", "deps"];
   const now = new Date();
   let generated = 0;
   const errors: string[] = [];
 
-  // Group pairs by stack
-  const stackGroups = new Map<string, string[]>();
-  for (const pair of pairs) {
-    const existing = stackGroups.get(pair.stackSlug) ?? [];
-    existing.push(pair.layerSlug);
-    stackGroups.set(pair.stackSlug, existing);
-  }
+  for (const { stackSlug, stackId } of stackRows) {
+    const ruleTypesToProcess: Array<"patterns" | "deps"> = [];
 
-  for (const [stackSlug, allLayerSlugs] of stackGroups) {
-    // Filter to layers that need generation based on mode
-    const layerSlugsToProcess: string[] = [];
-
-    for (const layerSlug of allLayerSlugs) {
-      const pair = pairs.find((p) => p.stackSlug === stackSlug && p.layerSlug === layerSlug)!;
+    for (const contentType of CONTENT_TYPES) {
+      const ruleType = contentType; // "patterns" | "deps"
       const shouldGenerate = await (async () => {
         if (mode === "all") return true;
         const [existing] = await db
@@ -450,20 +438,25 @@ export async function bulkRunSummarizer(
           .from(summarizedGuardrail)
           .where(
             and(
-              eq(summarizedGuardrail.stackId, pair.stackId),
-              eq(summarizedGuardrail.layerId, pair.layerId)
+              eq(summarizedGuardrail.stackId, stackId),
+              eq(summarizedGuardrail.contentType, ruleType)
             )
           )
           .limit(1);
         if (mode === "empty") return !existing;
         return !existing || (existing.expiresAt !== null && existing.expiresAt < now);
       })();
-      if (shouldGenerate) layerSlugsToProcess.push(layerSlug);
+      if (shouldGenerate) ruleTypesToProcess.push(contentType);
     }
 
-    if (layerSlugsToProcess.length === 0) continue;
+    if (ruleTypesToProcess.length === 0) continue;
+
+    // Use a representative layer slug for summarizer calls (patterns → auth_session, deps → dependency_supply)
+    const layerSlugForType = (ct: "patterns" | "deps") =>
+      ct === "deps" ? "dependency_supply" : "auth_session";
 
     try {
+      const layerSlugsToProcess = ruleTypesToProcess.map(layerSlugForType);
       const stackResults = await runSummarizerForStack(stackSlug, layerSlugsToProcess);
       for (const r of stackResults) {
         if (r.ruleCount > 0) generated++;
@@ -476,5 +469,6 @@ export async function bulkRunSummarizer(
     await new Promise((r) => setTimeout(r, 300));
   }
 
-  return { generated, skipped: pairs.length - generated - errors.length, errors };
+  const totalPossible = stackRows.length * CONTENT_TYPES.length;
+  return { generated, skipped: totalPossible - generated - errors.length, errors };
 }

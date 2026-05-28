@@ -429,8 +429,7 @@ export const summarizedGuardrail = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     stackId: smallint("stack_id").notNull().references(() => stack.id),
-    layerId: uuid("layer_id").notNull().references(() => layer.id),
-    ideSlug: text("ide_slug").notNull(),
+    contentType: text("content_type", { enum: ["patterns", "deps"] }).notNull(),
     content: text("content").notNull(),
     sourceRuleIds: uuid("source_rule_ids").array().notNull(),
     provenance: jsonb("provenance"),
@@ -444,7 +443,7 @@ export const summarizedGuardrail = pgTable(
     scoreNote: text("score_note"),
   },
   (t) => ({
-    stackLayerIdeIdx:  index("summarized_guardrail_stack_layer_ide_idx").on(t.stackId, t.layerId, t.ideSlug),
+    uniqStackContent:  uniqueIndex("summarized_guardrail_stack_content_key").on(t.stackId, t.contentType),
     qualityScoreIdx:   index("summarized_guardrail_quality_score_idx").on(t.qualityScore),
     expiresAtIdx:      index("summarized_guardrail_expires_at_idx").on(t.expiresAt),
   })

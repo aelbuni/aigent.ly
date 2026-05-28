@@ -2,7 +2,7 @@ import Link from "next/link";
 
 interface MatrixCell {
   stackSlug: string;
-  layerSlug: string;
+  contentType: string;
   guardrailId?: string;
   score?: number | null;
   isStale?: boolean;
@@ -11,7 +11,7 @@ interface MatrixCell {
 
 interface CoverageMatrixProps {
   stacks: { slug: string; name: string }[];
-  layers: { slug: string; name: string }[];
+  contentTypes: readonly string[];
   cells: MatrixCell[];
   totalPairs: number;
   coveredPairs: number;
@@ -27,7 +27,7 @@ function getCellClasses(cell: MatrixCell | undefined): string {
 
 export function CoverageMatrix({
   stacks,
-  layers,
+  contentTypes,
   cells,
   totalPairs,
   coveredPairs,
@@ -36,14 +36,14 @@ export function CoverageMatrix({
     totalPairs > 0 ? Math.round((coveredPairs / totalPairs) * 100) : 0;
 
   const cellMap = new Map(
-    cells.map((c) => [`${c.stackSlug}:${c.layerSlug}`, c])
+    cells.map((c) => [`${c.stackSlug}:${c.contentType}`, c])
   );
 
   return (
     <div className="rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-dark dark:text-white">
-          Stack × Layer Coverage Matrix
+          Stack × Rule Type Coverage Matrix
         </h3>
         <span className="text-sm text-dark-6">
           {coveredPairs} / {totalPairs} pairs ({coveragePct}%)
@@ -55,15 +55,15 @@ export function CoverageMatrix({
           <thead>
             <tr>
               <th className="w-28 min-w-[7rem] p-1 text-left font-medium text-dark-6">
-                Stack \ Layer
+                Stack \ Type
               </th>
-              {layers.map((l) => (
+              {contentTypes.map((ct) => (
                 <th
-                  key={l.slug}
-                  className="max-w-[3rem] p-1 text-center font-medium text-dark-6"
+                  key={ct}
+                  className="max-w-[5rem] p-1 text-center font-medium text-dark-6"
                 >
-                  <span className="block truncate" title={l.name}>
-                    {l.name.split(/[\s&]/)[0]}
+                  <span className="block truncate capitalize" title={ct}>
+                    {ct}
                   </span>
                 </th>
               ))}
@@ -81,11 +81,11 @@ export function CoverageMatrix({
                 >
                   {s.name}
                 </td>
-                {layers.map((l) => {
-                  const cell = cellMap.get(`${s.slug}:${l.slug}`);
+                {contentTypes.map((ct) => {
+                  const cell = cellMap.get(`${s.slug}:${ct}`);
                   const score = cell?.score ?? null;
                   return (
-                    <td key={l.slug} className="p-1 text-center">
+                    <td key={ct} className="p-1 text-center">
                       {cell?.guardrailId ? (
                         <Link
                           href={`/admin/guardrails/${cell.guardrailId}`}
@@ -96,7 +96,7 @@ export function CoverageMatrix({
                         </Link>
                       ) : (
                         <Link
-                          href={`/admin/guardrails?stack=${s.slug}&layer=${l.slug}`}
+                          href={`/admin/guardrails?stack=${s.slug}&layer=${ct}`}
                           className="inline-flex h-5 w-5 items-center justify-center rounded bg-gray-3 text-dark-6 hover:bg-gray-4 dark:bg-dark-2 dark:text-white"
                           title="Missing — click to generate"
                         >

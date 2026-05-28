@@ -898,6 +898,7 @@ export type ThreatMeta = {
 export type GuardrailForExport = {
   layerSlug: string;
   layerName: string;
+  contentType: "patterns" | "deps";
   content: string;
   sourceRuleIds: string[];
   threats: ThreatMeta[];
@@ -906,7 +907,7 @@ export type GuardrailForExport = {
 export async function listRulesForComposerExport(
   stackSlug: string,
   ideSlug: string,
-  layerSlugs: string[]
+  ruleType: "all" | "patterns" | "deps" = "all"
 ) {
   const whereBase = and(eq(stack.slug, stackSlug), eq(ide.slug, ideSlug));
 
@@ -929,68 +930,36 @@ export async function listRulesForComposerExport(
     .where(whereBase)
     .orderBy(asc(rule.slug));
 
-  if (layerSlugs.length === 0) return candidates;
+  if (ruleType === "all") return candidates;
 
-  const ruleIds = candidates.map((c) => c.id);
-  if (ruleIds.length === 0) return [];
-
-  const layerRows = await db
-    .select({ ruleId: ruleLayerMap.ruleId, layerSlug: layer.slug })
-    .from(ruleLayerMap)
-    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
-    .where(and(inArray(ruleLayerMap.ruleId, ruleIds), inArray(layer.slug, layerSlugs)));
-
-  const byRule = new Map<string, Set<string>>();
-  for (const row of layerRows) {
-    let set = byRule.get(row.ruleId);
-    if (!set) { set = new Set(); byRule.set(row.ruleId, set); }
-    set.add(row.layerSlug);
-  }
-
-  return candidates.filter((c) => {
-    const got = byRule.get(c.id);
-    if (!got) return false;
-    for (const l of layerSlugs) { if (got.has(l)) return true; }
-    return false;
-  });
+  const depsPattern = /-security-deps-v\d+$/i;
+  const patternsPattern = /-security-patterns-v\d+$/i;
+  return candidates.filter((c) =>
+    ruleType === "deps" ? depsPattern.test(c.slug) : patternsPattern.test(c.slug)
+  );
 }
 
 export async function listGuardrailsForComposerExport(
   stackSlug: string,
-  layerSlugs: string[]
+  ruleType: "all" | "patterns" | "deps" = "all"
 ): Promise<GuardrailForExport[]> {
-  if (layerSlugs.length === 0) return [];
+  const contentTypes: ("patterns" | "deps")[] =
+    ruleType === "all" ? ["patterns", "deps"] :
+    ruleType === "patterns" ? ["patterns"] : ["deps"];
 
   const rows = await db
     .select({
-      layerSlug: layer.slug,
-      layerName: layer.name,
+      contentType: summarizedGuardrail.contentType,
       content: summarizedGuardrail.content,
       sourceRuleIds: summarizedGuardrail.sourceRuleIds,
       generatedAt: summarizedGuardrail.generatedAt,
     })
     .from(summarizedGuardrail)
     .innerJoin(stack, eq(stack.id, summarizedGuardrail.stackId))
-    .innerJoin(layer, eq(layer.id, summarizedGuardrail.layerId))
-    .where(and(eq(stack.slug, stackSlug), inArray(layer.slug, layerSlugs)))
-    .orderBy(asc(layer.sortOrder));
-
-  // Deduplicate: keep newest guardrail per layer slug
-  const seen = new Map<string, typeof rows[number]>();
-  for (const row of rows) {
-    const existing = seen.get(row.layerSlug);
-    if (!existing || (row.generatedAt && existing.generatedAt && row.generatedAt > existing.generatedAt)) {
-      seen.set(row.layerSlug, row);
-    }
-  }
-  const deduped = [...seen.values()].sort((a, b) => {
-    const ai = rows.findIndex((r) => r.layerSlug === a.layerSlug);
-    const bi = rows.findIndex((r) => r.layerSlug === b.layerSlug);
-    return ai - bi;
-  });
+    .where(and(eq(stack.slug, stackSlug), inArray(summarizedGuardrail.contentType, contentTypes)));
 
   const result: GuardrailForExport[] = [];
-  for (const g of deduped) {
+  for (const g of rows) {
     let threats: ThreatMeta[] = [];
     if (g.sourceRuleIds.length > 0) {
       threats = await db
@@ -1008,7 +977,10 @@ export async function listGuardrailsForComposerExport(
           sql`CASE ${threat.severity} WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`
         );
     }
-    result.push({ layerSlug: g.layerSlug, layerName: g.layerName, content: g.content, sourceRuleIds: g.sourceRuleIds, threats });
+    // Use a stable display label for the content type
+    const layerSlug = g.contentType === "deps" ? "dependency_supply" : "auth_session";
+    const layerName = g.contentType === "deps" ? "Dependency & Supply Chain" : "Security Patterns";
+    result.push({ layerSlug, layerName, contentType: g.contentType, content: g.content, sourceRuleIds: g.sourceRuleIds, threats });
   }
   return result;
 }

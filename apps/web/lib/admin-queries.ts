@@ -324,14 +324,14 @@ export async function listGuardrails(params: {
   page: number;
   perPage: number;
   stackSlug?: string;
-  layerSlug?: string;
+  contentType?: "patterns" | "deps";
 }) {
-  const { page, perPage, stackSlug, layerSlug } = params;
+  const { page, perPage, stackSlug, contentType } = params;
   const offset = (page - 1) * perPage;
 
   const conditions = [];
   if (stackSlug) conditions.push(eq(stack.slug, stackSlug));
-  if (layerSlug) conditions.push(eq(layer.slug, layerSlug));
+  if (contentType) conditions.push(eq(summarizedGuardrail.contentType, contentType));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [rows, [total]] = await Promise.all([
@@ -341,10 +341,7 @@ export async function listGuardrails(params: {
         stackId: summarizedGuardrail.stackId,
         stackSlug: stack.slug,
         stackName: stack.name,
-        layerId: summarizedGuardrail.layerId,
-        layerSlug: layer.slug,
-        layerName: layer.name,
-        ideSlug: summarizedGuardrail.ideSlug,
+        contentType: summarizedGuardrail.contentType,
         summarizerVersion: summarizedGuardrail.summarizerVersion,
         conflictCount: summarizedGuardrail.conflictCount,
         generatedAt: summarizedGuardrail.generatedAt,
@@ -358,7 +355,6 @@ export async function listGuardrails(params: {
       })
       .from(summarizedGuardrail)
       .innerJoin(stack, eq(summarizedGuardrail.stackId, stack.id))
-      .innerJoin(layer, eq(summarizedGuardrail.layerId, layer.id))
       .where(where)
       .orderBy(desc(summarizedGuardrail.generatedAt))
       .limit(perPage)
@@ -367,7 +363,6 @@ export async function listGuardrails(params: {
       .select({ count: count() })
       .from(summarizedGuardrail)
       .innerJoin(stack, eq(summarizedGuardrail.stackId, stack.id))
-      .innerJoin(layer, eq(summarizedGuardrail.layerId, layer.id))
       .where(where),
   ]);
   return { rows, total: total.count };
@@ -597,11 +592,12 @@ export function computeQualityScore(row: {
 // ── Guardrail coverage + evaluation data ──────────────────────────────────────
 
 export async function getGuardrailCoverage() {
+  // Guardrails are now keyed by (stack, contentType). Total possible = stacks × 2 types.
+  const CONTENT_TYPES = ["patterns", "deps"] as const;
+
   const [
     allStacksResult,
-    allActiveLayersResult,
     [coveredPairsRow],
-    perStackResult,
     coveredPerStackRows,
     [qualityStatsRow],
     matrixRows,
@@ -610,27 +606,10 @@ export async function getGuardrailCoverage() {
     // All stacks (full rows for matrix)
     db.select({ id: stack.id, slug: stack.slug, name: stack.name }).from(stack).orderBy(stack.sortOrder),
 
-    // All active layers (full rows for matrix)
-    db.select({ id: layer.id, slug: layer.slug, name: layer.name }).from(layer).where(eq(layer.isActive, true)).orderBy(layer.sortOrder),
-
     // Covered pairs (have a summarized_guardrail row)
     db.select({ count: count() }).from(summarizedGuardrail),
 
-    // Per-stack: total distinct layers from rules
-    db.execute<{ stackId: number; stackName: string; stackSlug: string; totalLayers: number }>(sql`
-      SELECT s.id AS "stackId", s.name AS "stackName", s.slug AS "stackSlug",
-             COUNT(DISTINCT rlm.layer_id)::int AS "totalLayers"
-      FROM rule
-      JOIN rule_stack rs ON rs.rule_id = rule.id
-      JOIN stack s ON s.id = rs.stack_id
-      JOIN rule_layer_map rlm ON rlm.rule_id = rule.id
-      JOIN layer l ON l.id = rlm.layer_id
-      WHERE l.is_active = true
-      GROUP BY s.id, s.name, s.slug
-      ORDER BY s.sort_order
-    `),
-
-    // Per-stack: covered layers (have a guardrail)
+    // Per-stack: covered contentTypes (have a guardrail)
     db
       .select({
         stackId: summarizedGuardrail.stackId,
@@ -656,8 +635,7 @@ export async function getGuardrailCoverage() {
         id: summarizedGuardrail.id,
         stackName: stack.name,
         stackSlug: stack.slug,
-        layerName: layer.name,
-        layerSlug: layer.slug,
+        contentType: summarizedGuardrail.contentType,
         conflictCount: summarizedGuardrail.conflictCount,
         sourceRuleCount: sql<number>`array_length(${summarizedGuardrail.sourceRuleIds}, 1)`,
         contentLength: sql<number>`char_length(${summarizedGuardrail.content})`,
@@ -670,44 +648,35 @@ export async function getGuardrailCoverage() {
       })
       .from(summarizedGuardrail)
       .innerJoin(stack, eq(summarizedGuardrail.stackId, stack.id))
-      .innerJoin(layer, eq(summarizedGuardrail.layerId, layer.id))
-      .orderBy(stack.sortOrder, layer.sortOrder),
+      .orderBy(stack.sortOrder, summarizedGuardrail.contentType),
 
-    // Uncovered pairs (no guardrail yet) — derived from rules
-    db.execute<{ stackName: string; stackSlug: string; layerName: string; layerSlug: string; stackId: number; layerId: string }>(sql`
+    // Uncovered (stack, contentType) pairs — stacks that have rules but no guardrail yet
+    db.execute<{ stackName: string; stackSlug: string; contentType: string; stackId: number }>(sql`
       SELECT s.name AS "stackName", s.slug AS "stackSlug",
-             l.name AS "layerName", l.slug AS "layerSlug",
-             pairs.stack_id AS "stackId", pairs.layer_id AS "layerId"
-      FROM (
-        SELECT DISTINCT rs.stack_id, rlm.layer_id
-        FROM rule
-        JOIN rule_stack rs ON rs.rule_id = rule.id
-        JOIN rule_layer_map rlm ON rlm.rule_id = rule.id
-        JOIN layer l ON l.id = rlm.layer_id
-        WHERE l.is_active = true
-      ) pairs
-      JOIN stack s ON s.id = pairs.stack_id
-      JOIN layer l ON l.id = pairs.layer_id
-      LEFT JOIN summarized_guardrail sg
-        ON sg.stack_id = pairs.stack_id AND sg.layer_id = pairs.layer_id
-      WHERE sg.id IS NULL
-      ORDER BY s.sort_order, l.sort_order
+             ct.content_type AS "contentType", s.id AS "stackId"
+      FROM stack s
+      CROSS JOIN (VALUES ('patterns'), ('deps')) AS ct(content_type)
+      WHERE EXISTS (SELECT 1 FROM rule_stack rs WHERE rs.stack_id = s.id)
+        AND NOT EXISTS (
+          SELECT 1 FROM summarized_guardrail sg
+          WHERE sg.stack_id = s.id AND sg.content_type = ct.content_type
+        )
+      ORDER BY s.sort_order, ct.content_type
     `),
   ]);
 
   const allStacksCount = allStacksResult.length;
-  const allActiveLayersCount = allActiveLayersResult.length;
-  const totalPairs = allStacksCount * allActiveLayersCount;
+  const totalPairs = allStacksCount * CONTENT_TYPES.length;
   const coveredPairs = coveredPairsRow?.count ?? 0;
 
   // Merge per-stack coverage
   const coveredMap = new Map(coveredPerStackRows.map((r) => [r.stackId, r.coveredLayers]));
-  const perStack = (perStackResult.rows as { stackId: number; stackName: string; stackSlug: string; totalLayers: number }[]).map((r) => ({
-    stackId: r.stackId,
-    stackName: r.stackName,
-    stackSlug: r.stackSlug,
-    totalLayers: allActiveLayersCount,  // was: r.totalLayers — that counted rule-covered layers only
-    coveredLayers: coveredMap.get(r.stackId) ?? 0,
+  const perStack = allStacksResult.map((r) => ({
+    stackId: r.id,
+    stackName: r.name,
+    stackSlug: r.slug,
+    totalTypes: CONTENT_TYPES.length,
+    coveredTypes: coveredMap.get(r.id) ?? 0,
   }));
 
   return {
@@ -715,7 +684,7 @@ export async function getGuardrailCoverage() {
     coveredPairs,
     coveragePct: totalPairs > 0 ? Math.round((coveredPairs / totalPairs) * 100) : 0,
     allStacks: allStacksResult,
-    allActiveLayers: allActiveLayersResult,
+    contentTypes: CONTENT_TYPES,
     perStack,
     qualityStats: qualityStatsRow ?? {
       avgScore: 0,

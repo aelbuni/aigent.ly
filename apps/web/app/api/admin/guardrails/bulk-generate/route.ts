@@ -26,63 +26,51 @@ export async function GET(req: Request) {
       const enc = (obj: object) => `data: ${JSON.stringify(obj)}\n\n`;
 
       try {
-        // Discover all (stack, layer) pairs that have at least one rule covering both
-        const pairs = await db
-          .selectDistinct({
-            stackSlug: stack.slug,
-            layerSlug: layer.slug,
-            stackId: stack.id,
-            layerId: layer.id,
-            stackName: stack.name,
-            layerName: layer.name,
-          })
+        // Discover all stacks that have at least one rule
+        const stackRows = await db
+          .selectDistinct({ stackSlug: stack.slug, stackId: stack.id, stackName: stack.name })
           .from(rule)
           .innerJoin(ruleStack, eq(ruleStack.ruleId, rule.id))
-          .innerJoin(stack, eq(stack.id, ruleStack.stackId))
-          .innerJoin(ruleLayerMap, eq(ruleLayerMap.ruleId, rule.id))
-          .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
-          .where(eq(layer.isActive, true));
+          .innerJoin(stack, eq(stack.id, ruleStack.stackId));
 
-        // Dry-count pass — determine which pairs need generation
+        const CONTENT_TYPES: Array<"patterns" | "deps"> = ["patterns", "deps"];
+
+        // Dry-count pass — determine which (stack, contentType) pairs need generation
         const now = new Date();
         let alreadyFilledCount = 0;
 
-        // Group pairs by stack, keeping only those that need work
-        type PairMeta = { layerSlug: string; layerName: string; stackName: string; stackId: number; layerId: string };
+        // Group by stack, keeping only those that need work
+        type PairMeta = { contentType: "patterns" | "deps"; stackName: string; stackId: number };
         const stackGroups = new Map<string, PairMeta[]>();
 
-        for (const pair of pairs) {
-          const shouldGenerate = await (async () => {
-            if (mode === "all") return true;
-            const [existing] = await db
-              .select({ id: summarizedGuardrail.id, expiresAt: summarizedGuardrail.expiresAt })
-              .from(summarizedGuardrail)
-              .where(
-                and(
-                  eq(summarizedGuardrail.stackId, pair.stackId),
-                  eq(summarizedGuardrail.layerId, pair.layerId)
+        for (const sr of stackRows) {
+          for (const contentType of CONTENT_TYPES) {
+            const shouldGenerate = await (async () => {
+              if (mode === "all") return true;
+              const [existing] = await db
+                .select({ id: summarizedGuardrail.id, expiresAt: summarizedGuardrail.expiresAt })
+                .from(summarizedGuardrail)
+                .where(
+                  and(
+                    eq(summarizedGuardrail.stackId, sr.stackId),
+                    eq(summarizedGuardrail.contentType, contentType)
+                  )
                 )
-              )
-              .limit(1);
-            if (mode === "empty") return !existing;
-            return !existing || (existing.expiresAt !== null && existing.expiresAt < now);
-          })();
+                .limit(1);
+              if (mode === "empty") return !existing;
+              return !existing || (existing.expiresAt !== null && existing.expiresAt < now);
+            })();
 
-          if (!shouldGenerate) {
-            alreadyFilledCount++;
-            continue;
+            if (!shouldGenerate) { alreadyFilledCount++; continue; }
+
+            const group = stackGroups.get(sr.stackSlug) ?? [];
+            group.push({ contentType, stackName: sr.stackName, stackId: sr.stackId });
+            stackGroups.set(sr.stackSlug, group);
           }
-
-          const group = stackGroups.get(pair.stackSlug) ?? [];
-          group.push({
-            layerSlug: pair.layerSlug,
-            layerName: pair.layerName,
-            stackName: pair.stackName,
-            stackId: pair.stackId,
-            layerId: pair.layerId,
-          });
-          stackGroups.set(pair.stackSlug, group);
         }
+
+        // Build a fake pairs array for the total count below
+        const pairs = stackRows.flatMap((sr) => CONTENT_TYPES.map((ct) => ({ stackSlug: sr.stackSlug, contentType: ct })));
 
         const toProcess = [...stackGroups.values()].reduce((sum, g) => sum + g.length, 0);
 
@@ -114,13 +102,13 @@ export async function GET(req: Request) {
         let processedCount = 0;
         const errors: string[] = [];
 
-        // One LLM call per stack (batches all its layers)
-        for (const [stackSlug, layerMetas] of stackGroups) {
-          const layerSlugs = layerMetas.map((m) => m.layerSlug);
-          const stackName = layerMetas[0].stackName;
-
-          // Build a lookup for display names
-          const layerNameBySlug = new Map(layerMetas.map((m) => [m.layerSlug, m.layerName]));
+        // One batch per stack — runs patterns + deps rule types
+        for (const [stackSlug, typeMetas] of stackGroups) {
+          const stackName = typeMetas[0].stackName;
+          // Map contentType → representative layer slug for the summarizer
+          const layerSlugForType = (ct: "patterns" | "deps") =>
+            ct === "deps" ? "dependency_supply" : "auth_session";
+          const layerSlugs = typeMetas.map((m) => layerSlugForType(m.contentType));
 
           const onLayerComplete = (result: LayerSummaryResult) => {
             processedCount++;
@@ -130,9 +118,8 @@ export async function GET(req: Request) {
               index: processedCount,
               total: toProcess,
               stackSlug,
-              layerSlug: result.layerSlug,
+              contentType: result.layerSlug === "dependency_supply" ? "deps" : "patterns",
               stackName,
-              layerName: layerNameBySlug.get(result.layerSlug) ?? result.layerName,
               status: result.ruleCount > 0 ? "ok" : "skip",
               ruleCount: result.ruleCount,
               cacheHit: result.cacheHit,
@@ -146,17 +133,16 @@ export async function GET(req: Request) {
           } catch (e) {
             const msg = `${stackSlug}: ${e instanceof Error ? e.message : String(e)}`;
             errors.push(msg);
-            // Emit error progress events for each layer in this stack
-            for (const meta of layerMetas) {
+            // Emit error progress events for each type in this stack
+            for (const meta of typeMetas) {
               processedCount++;
               controller.enqueue(enc({
                 type: "progress",
                 index: processedCount,
                 total: toProcess,
                 stackSlug,
-                layerSlug: meta.layerSlug,
+                contentType: meta.contentType,
                 stackName,
-                layerName: meta.layerName,
                 status: "error",
                 ruleCount: 0,
                 cacheHit: false,

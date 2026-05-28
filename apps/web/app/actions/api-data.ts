@@ -140,12 +140,12 @@ export async function listRulesPreviewAction(
 export async function postComposerExportAction(body: {
   stackSlug: string;
   ideSlug: string;
-  layers?: string[];
+  ruleType?: "all" | "patterns" | "deps";
   mode?: "rule" | "skill";
 }) {
   try {
     const { buildComposerMarkdownExport, buildSkillMdExport } = await import("@/lib/composer-export");
-    const input = { stackSlug: body.stackSlug, ideSlug: body.ideSlug, layers: body.layers ?? [] };
+    const input = { stackSlug: body.stackSlug, ideSlug: body.ideSlug, ruleType: body.ruleType ?? "all" };
     const result =
       body.mode === "skill" && body.ideSlug === "claude-code"
         ? await buildSkillMdExport(input)

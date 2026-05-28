@@ -59,7 +59,7 @@ export default async function GuardrailEvaluationPage() {
   // Build matrix cells from matrixRows (covered guardrails only)
   const matrixCells = data.matrixRows.map((g) => ({
     stackSlug: g.stackSlug,
-    layerSlug: g.layerSlug,
+    contentType: g.contentType,
     guardrailId: g.id,
     score: g.scoreOverride ?? g.qualityScore ?? 0,
     isStale: g.expiresAt != null && new Date(g.expiresAt) < now,
@@ -79,7 +79,7 @@ export default async function GuardrailEvaluationPage() {
           {
             label: "True Coverage",
             value: `${data.coveragePct}%`,
-            sub: `${data.coveredPairs} / ${data.totalPairs} pairs (${data.allStacks.length} stacks × ${data.allActiveLayers.length} layers)`,
+            sub: `${data.coveredPairs} / ${data.totalPairs} pairs (${data.allStacks.length} stacks × ${data.contentTypes.length} types)`,
           },
           { label: "Avg quality score", value: `${avgScore}/10`, sub: "across all guardrails" },
           { label: "Conflict-free", value: `${cleanPct}%`, sub: `${data.qualityStats.zeroConflictCount} clean guardrails` },
@@ -96,7 +96,7 @@ export default async function GuardrailEvaluationPage() {
       {/* ── Stack × Layer coverage matrix ───────────────────────────────────── */}
       <CoverageMatrix
         stacks={data.allStacks}
-        layers={data.allActiveLayers}
+        contentTypes={data.contentTypes}
         cells={matrixCells}
         totalPairs={data.totalPairs}
         coveredPairs={data.coveredPairs}
@@ -106,13 +106,13 @@ export default async function GuardrailEvaluationPage() {
       <div className="rounded-[10px] border border-stroke bg-white p-6 shadow-1 dark:border-dark-3 dark:bg-gray-dark space-y-3">
         <h2 className="text-base font-semibold text-dark dark:text-white">Coverage by stack</h2>
         {data.perStack.length === 0 ? (
-          <p className="text-sm text-dark-6">No active stack×layer pairs found.</p>
+          <p className="text-sm text-dark-6">No stack guardrails found.</p>
         ) : (
           <ul className="space-y-2">
             {data.perStack.map((s) => (
               <li key={s.stackSlug} className="flex items-center gap-4">
                 <span className="w-28 shrink-0 text-sm text-dark dark:text-white truncate">{s.stackName}</span>
-                <CoverageBar covered={s.coveredLayers} total={s.totalLayers} />
+                <CoverageBar covered={s.coveredTypes} total={s.totalTypes} />
               </li>
             ))}
           </ul>
@@ -145,7 +145,7 @@ export default async function GuardrailEvaluationPage() {
                   <AdminTableRow key={g.id}>
                     <AdminPrimaryCell
                       title={g.stackName}
-                      subtitle={`${g.layerName} · v${g.summarizerVersion}`}
+                      subtitle={`${g.contentType} · v${g.summarizerVersion}`}
                       href={`/admin/guardrails/${g.id}`}
                     />
                     <AdminTableCell>
@@ -186,18 +186,18 @@ export default async function GuardrailEvaluationPage() {
             <AdminTableHeader>
               <AdminTableHeaderRow>
                 <AdminTableHead>Stack</AdminTableHead>
-                <AdminTableHead>Layer</AdminTableHead>
+                <AdminTableHead>Type</AdminTableHead>
                 <AdminTableHead align="right">Action</AdminTableHead>
               </AdminTableHeaderRow>
             </AdminTableHeader>
             <AdminTableBody>
               {data.uncoveredPairs.map((p) => (
-                <AdminTableRow key={`${p.stackSlug}-${p.layerSlug}`}>
+                <AdminTableRow key={`${p.stackSlug}-${p.contentType}`}>
                   <AdminTableCell>
                     <span className="text-sm text-dark dark:text-white">{p.stackName}</span>
                   </AdminTableCell>
                   <AdminTableCell>
-                    <span className="text-sm text-dark dark:text-white">{p.layerName}</span>
+                    <span className="text-sm text-dark dark:text-white">{p.contentType}</span>
                   </AdminTableCell>
                   <AdminTableCell align="right">
                     <a
