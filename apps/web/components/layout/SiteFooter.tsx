@@ -51,7 +51,7 @@ export function SiteFooter() {
               href="/work-with-us"
               className="font-mono text-[10px] uppercase text-slate-500 transition-colors hover:text-white"
             >
-              Work with us
+              Contribute
             </Link>
             <a
               href="https://github.com/aelbuni/aigently-catalog"

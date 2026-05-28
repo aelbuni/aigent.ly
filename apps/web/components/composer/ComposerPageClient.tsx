@@ -6,6 +6,7 @@ import { MaterialSymbol } from "@/components/MaterialSymbol";
 import {
   postComposerExportAction,
 } from "@/app/actions/api-data";
+import { trackRuleUse } from "@/app/actions/rule-usage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,12 @@ export function ComposerPageClient({
     setStatus(null);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3500);
+
+    // Fire-and-forget usage tracking — derives rule slugs from stack + ruleType
+    const slugs: string[] = [];
+    if (selectedRuleType !== "deps") slugs.push(`${stackSlug}-security-patterns-v1`);
+    if (selectedRuleType !== "patterns") slugs.push(`${stackSlug}-security-deps-v1`);
+    void trackRuleUse(slugs);
   }
 
   function onDownload() {
@@ -136,6 +143,11 @@ export function ComposerPageClient({
     a.download = preview.filename;
     a.click();
     URL.revokeObjectURL(url);
+    // Track download as an additional use event
+    const slugs: string[] = [];
+    if (selectedRuleType !== "deps") slugs.push(`${stackSlug}-security-patterns-v1`);
+    if (selectedRuleType !== "patterns") slugs.push(`${stackSlug}-security-deps-v1`);
+    void trackRuleUse(slugs);
   }
 
   async function onCopy() {

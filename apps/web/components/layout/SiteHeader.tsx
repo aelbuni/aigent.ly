@@ -65,7 +65,7 @@ export function SiteHeader() {
             href="/work-with-us"
             className="hidden scale-100 rounded bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-transform active:scale-95 md:block"
           >
-            Work with us
+            Contribute
           </Link>
 
           {/* Mobile hamburger */}
@@ -125,7 +125,7 @@ export function SiteHeader() {
               onClick={() => setMenuOpen(false)}
               className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 text-base font-semibold text-white"
             >
-              Work with us
+              Contribute
             </Link>
           </div>
         </div>

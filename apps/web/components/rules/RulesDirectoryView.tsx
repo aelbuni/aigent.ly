@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
 import type { RuleDirectoryCard } from "@/lib/rules-directory-showcase";
+import { RuleCopyButton } from "./RuleCopyButton";
 import {
   buildRulesDirectoryHref,
   setClassification,
@@ -357,15 +358,15 @@ export function RulesDirectoryView({
                         <div className="text-on-surface">{r.lineCount}</div>
                       </div>
                     ) : null}
-                    <div>
-                      <div className="font-mono-label text-[10px] text-on-surface-variant">Uses</div>
-                      <div className="text-on-surface">{r.usesLabel}</div>
-                    </div>
+                    {r.usesLabel ? (
+                      <div>
+                        <div className="font-mono-label text-[10px] text-on-surface-variant">Uses</div>
+                        <div className="text-on-surface">{r.usesLabel}</div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" className="rounded p-2 text-on-surface-variant hover:bg-surface-container" aria-label="Copy slug">
-                      <MaterialSymbol name="content_copy" className="!text-xl" />
-                    </button>
+                    <RuleCopyButton slug={r.slug} />
                     {r.hasDetailPage ? (
                       <Link
                         href={`/rules/${encodeURIComponent(r.slug)}`}

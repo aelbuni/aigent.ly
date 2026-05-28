@@ -595,11 +595,12 @@ export type ThreatFeedPage = {
  */
 export async function listThreatsPagedFromDb(params: {
   severities?: string[];   // e.g. ["critical","high"] — empty = all
+  stackSlug?: string;      // filter by specific stack slug
   q?: string;              // full-text search against name + cveId + publicId
   page?: number;
   perPage?: number;
 }): Promise<ThreatFeedPage> {
-  const { severities = [], q = "", page = 1, perPage = 15 } = params;
+  const { severities = [], stackSlug = "", q = "", page = 1, perPage = 15 } = params;
   const offset = (page - 1) * perPage;
 
   // Build parameterized WHERE clause for direct pg queries
@@ -613,6 +614,10 @@ export async function listThreatsPagedFromDb(params: {
     const placeholders = severities.map((_, i) => `$${qp.length + i + 1}`).join(", ");
     whereParts.push(`t.severity IN (${placeholders})`);
     qp.push(...severities);
+  }
+  if (stackSlug.trim()) {
+    qp.push(stackSlug.trim());
+    whereParts.push(`s.slug = $${qp.length}`);
   }
   if (q.trim()) {
     qp.push(`%${q.trim()}%`);

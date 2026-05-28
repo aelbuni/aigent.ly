@@ -45,22 +45,24 @@ function parseThreatSearch(sp: Record<string, string | string[] | undefined> | u
     single = raw;
   }
   const q = firstString(sp?.q).trim();
+  const stackSlug = firstString(sp?.stack).trim();
   const pageRaw = parseInt(firstString(sp?.page), 10);
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
-  return { mode, single, q, page };
+  return { mode, single, q, stackSlug, page };
 }
 
 function buildThreatsHref(patch: {
   mode?: SeverityMode;
   single?: string;
+  stackSlug?: string;
   q?: string;
   page?: number;
 }) {
   const p = new URLSearchParams();
   if (patch.mode === "critical_high") p.set("severity", "critical_high");
-  else if (patch.mode === "all") {
-    /* default — omit param */
-  } else if (patch.single) p.set("severity", patch.single);
+  else if (patch.mode === "all") { /* default — omit */ }
+  else if (patch.single) p.set("severity", patch.single);
+  if (patch.stackSlug) p.set("stack", patch.stackSlug);
   if (patch.q) p.set("q", patch.q);
   if (patch.page !== undefined && patch.page > 1) p.set("page", String(patch.page));
   const s = p.toString();
@@ -94,7 +96,7 @@ export default async function ThreatsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = (await searchParams) ?? {};
-  const { mode, single, q, page: requestedPage } = parseThreatSearch(sp);
+  const { mode, single, q, stackSlug, page: requestedPage } = parseThreatSearch(sp);
 
   const severities =
     mode === "critical_high" ? ["critical", "high"] :
@@ -108,7 +110,7 @@ export default async function ThreatsPage({
   let protectByThreat = new Map<string, number>();
   try {
     [dbPage, matrixRows, verifiedCount, lastSync, protectByThreat] = await Promise.all([
-      listThreatsPagedFromDb({ severities, q, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
+      listThreatsPagedFromDb({ severities, stackSlug, q, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
       getLaunchStackThreatSeverityCounts(),
       countDistinctThreatsOnLaunchStacks(),
       getLastCatalogSyncFinishedAt(),
@@ -129,10 +131,13 @@ export default async function ThreatsPage({
   const rangeStart = totalFiltered === 0 ? 0 : sliceStart + 1;
   const rangeEnd = Math.min(sliceStart + THREAT_FEED_PAGE_SIZE, totalFiltered);
 
-  const activeFilterLabel =
+  const activeStackName = matrixRows.find((r) => r.slug === stackSlug)?.name ?? null;
+  const activeFilterLabel = [
+    activeStackName,
     mode === "critical_high" ? "Critical + High" :
     mode === "single" && single ? SEVERITY_CONFIG[single as keyof typeof SEVERITY_CONFIG]?.label ?? single :
-    "All severities";
+    null,
+  ].filter(Boolean).join(" · ") || "All threats";
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-background">
@@ -155,35 +160,129 @@ export default async function ThreatsPage({
           </p>
         </header>
 
-        {/* ── Severity stats strip ────────────────────────────────────────── */}
+        {/* ── Stack intel grid ───────────────────────────────────────────── */}
         {matrixRows.length > 0 && (
-          <div className="mb-6 overflow-x-auto">
-            <div className="flex min-w-max gap-3">
-              {matrixRows.slice(0, 6).map((row) => (
-                <div key={row.slug} className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-xs whitespace-nowrap">
-                  <span className="font-medium text-on-surface">{row.name}</span>
-                  <span className="font-semibold text-error">{row.critical} critical</span>
-                  <span className="text-outline-variant">·</span>
-                  <span className="font-semibold text-tertiary-container">{row.high} high</span>
-                </div>
-              ))}
+          <div className="mb-6">
+            {/* Grid header */}
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono-label text-[10px] uppercase tracking-[0.15em] text-on-surface-variant/60">
+                Stack exposure — click to filter
+              </span>
+              {stackSlug && (
+                <Link
+                  href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q })}
+                  className="font-mono-label text-[10px] text-primary hover:underline"
+                >
+                  ✕ Clear stack filter
+                </Link>
+              )}
+            </div>
+            {/* 2×3 clickable cards */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {matrixRows.slice(0, 6).map((row) => {
+                const isActive = stackSlug === row.slug;
+                const totalHigh = row.critical + row.high;
+                const critPct = totalHigh > 0 ? Math.round((row.critical / totalHigh) * 100) : 0;
+                return (
+                  <div
+                    key={row.slug}
+                    className={`group relative overflow-hidden rounded-xl border transition-all ${
+                      isActive
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-outline-variant bg-surface-container-lowest hover:border-outline hover:bg-surface-container-low"
+                    }`}
+                  >
+                    {/* Stack name — click = filter by this stack, all severities */}
+                    <Link
+                      href={buildThreatsHref({
+                        mode: isActive ? "all" : "all",
+                        stackSlug: isActive ? "" : row.slug,
+                        q,
+                      })}
+                      className="block px-3 pt-3 pb-1"
+                    >
+                      <span className={`block font-mono-label text-[11px] font-semibold leading-tight truncate ${isActive ? "text-primary" : "text-on-surface group-hover:text-primary"}`}>
+                        {row.name}
+                      </span>
+                    </Link>
+
+                    {/* Severity counts — each independently clickable */}
+                    <div className="flex gap-1 px-3 pb-2 pt-0.5">
+                      <Link
+                        href={buildThreatsHref({
+                          mode: "single",
+                          single: "critical",
+                          stackSlug: row.slug,
+                          q,
+                        })}
+                        className={`flex items-baseline gap-1 rounded px-1.5 py-0.5 transition-colors ${
+                          row.critical > 0
+                            ? "hover:bg-error/10 cursor-pointer"
+                            : "opacity-40 cursor-default pointer-events-none"
+                        }`}
+                        aria-label={`${row.critical} critical CVEs for ${row.name}`}
+                      >
+                        <span className={`font-mono-data text-sm font-bold tabular-nums ${row.critical > 0 ? "text-error" : "text-on-surface-variant"}`}>
+                          {row.critical}
+                        </span>
+                        <span className="font-mono-label text-[9px] uppercase text-on-surface-variant/60">crit</span>
+                      </Link>
+                      <span className="self-center text-outline-variant/50 text-[10px]">/</span>
+                      <Link
+                        href={buildThreatsHref({
+                          mode: "single",
+                          single: "high",
+                          stackSlug: row.slug,
+                          q,
+                        })}
+                        className={`flex items-baseline gap-1 rounded px-1.5 py-0.5 transition-colors ${
+                          row.high > 0
+                            ? "hover:bg-tertiary-container/10 cursor-pointer"
+                            : "opacity-40 cursor-default pointer-events-none"
+                        }`}
+                        aria-label={`${row.high} high CVEs for ${row.name}`}
+                      >
+                        <span className={`font-mono-data text-sm font-bold tabular-nums ${row.high > 0 ? "text-tertiary-container" : "text-on-surface-variant"}`}>
+                          {row.high}
+                        </span>
+                        <span className="font-mono-label text-[9px] uppercase text-on-surface-variant/60">high</span>
+                      </Link>
+                    </div>
+
+                    {/* Severity proportion bar */}
+                    {totalHigh > 0 && (
+                      <div className="h-0.5 w-full bg-tertiary-container/30">
+                        <div
+                          className="h-full bg-error transition-all"
+                          style={{ width: `${critPct}%` }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Active indicator dot */}
+                    {isActive && (
+                      <div className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* ── Filters + search ───────────────────────────────────────────── */}
         <div className="mb-6 space-y-3">
-          {/* Severity filters — scrollable on mobile */}
+          {/* Severity filters — scrollable on mobile, preserves active stack */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by severity">
-            <Link href={buildThreatsHref({ mode: "all", q })} className={filterButtonClass(mode === "all")}>
+            <Link href={buildThreatsHref({ mode: "all", stackSlug, q })} className={filterButtonClass(mode === "all" && !stackSlug)}>
               All
             </Link>
-            <Link href={buildThreatsHref({ mode: "critical_high", q })} className={filterButtonClass(mode === "critical_high", "critical")}>
+            <Link href={buildThreatsHref({ mode: "critical_high", stackSlug, q })} className={filterButtonClass(mode === "critical_high", "critical")}>
               <span className="h-1.5 w-1.5 rounded-full bg-error" />
               Critical + High
             </Link>
             {(["critical", "high", "medium", "low"] as const).map((s) => (
-              <Link key={s} href={buildThreatsHref({ mode: "single", single: s, q })} className={filterButtonClass(mode === "single" && single === s, s)}>
+              <Link key={s} href={buildThreatsHref({ mode: "single", single: s, stackSlug, q })} className={filterButtonClass(mode === "single" && single === s, s)}>
                 {SEVERITY_CONFIG[s].label}
               </Link>
             ))}
@@ -193,6 +292,7 @@ export default async function ThreatsPage({
           <form action="/threats" method="get" className="flex gap-2">
             {mode === "critical_high" && <input type="hidden" name="severity" value="critical_high" />}
             {mode === "single" && single && <input type="hidden" name="severity" value={single} />}
+            {stackSlug && <input type="hidden" name="stack" value={stackSlug} />}
             <div className="relative flex-1">
               <MaterialSymbol name="search" className="pointer-events-none absolute left-3 top-1/2 !text-lg -translate-y-1/2 text-on-surface-variant" />
               <input
@@ -204,7 +304,7 @@ export default async function ThreatsPage({
             </div>
             {q && (
               <Link
-                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined })}
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug })}
                 className="flex items-center rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-sm text-on-surface-variant hover:bg-surface-container"
               >
                 Clear
@@ -322,7 +422,7 @@ export default async function ThreatsPage({
               </span>
             ) : (
               <Link
-                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: page - 1 })}
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: page - 1 })}
                 className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
                 prefetch={false}
               >
@@ -338,7 +438,7 @@ export default async function ThreatsPage({
                 return (
                   <Link
                     key={p2}
-                    href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: p2 === 1 ? undefined : p2 })}
+                    href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: p2 === 1 ? undefined : p2 })}
                     className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${
                       p2 === page
                         ? "border-primary bg-primary text-white"
@@ -362,7 +462,7 @@ export default async function ThreatsPage({
               </span>
             ) : (
               <Link
-                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: page + 1 })}
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: page + 1 })}
                 className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
                 prefetch={false}
               >

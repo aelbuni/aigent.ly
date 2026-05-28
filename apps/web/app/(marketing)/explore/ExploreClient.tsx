@@ -267,7 +267,7 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
                       </>
                     )}
                     <span className="text-outline-variant">·</span>
-                    <span>{card.usesLabel} uses</span>
+                    {card.usesLabel ? <span>{card.usesLabel} uses</span> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link
