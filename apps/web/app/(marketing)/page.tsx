@@ -3,7 +3,6 @@ import {
   countDistinctThreatsOnLaunchStacks,
   listLaunchStacksFromDb,
   listTopThreatsForHomepage,
-  type HomeThreatRow,
 } from "@/lib/catalog-from-db";
 
 export const dynamic = "force-dynamic";

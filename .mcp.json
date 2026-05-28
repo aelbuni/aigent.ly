@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "aigently": {
+      "type": "stdio",
       "command": "node",
-      "args": ["/Users/aelbuni/Projects/aelbuni/aigently-catalog/packages/mcp-server/dist/index.js"],
+      "args": ["packages/mcp-server/dist/index.js"],
       "env": {
         "AIGENTLY_TARGET_IDE": "claude-code"
       }

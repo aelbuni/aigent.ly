@@ -13,39 +13,22 @@ import { toFeedItem, type ThreatFeedItem } from "@/lib/threats-showcase";
 
 export const dynamic = "force-dynamic";
 
-/** Strip markdown syntax from advisory descriptions so they render as plain text.
- *  GHSA/NVD descriptions often contain ### headings, [link](url), and ** bold. */
 function stripMarkdown(text: string): string {
   return text
-    .replace(/^#{1,6}\s+/gm, "")           // ## headings
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) → text
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")    // ![img](url) → remove
-    .replace(/\*\*([^*]+)\*\*/g, "$1")       // **bold** → text
-    .replace(/\*([^*]+)\*/g, "$1")           // *italic* → text
-    .replace(/`([^`]+)`/g, "$1")             // `code` → text
-    .replace(/^\s*[-*+]\s+/gm, "")          // bullet points
-    .replace(/\n{3,}/g, "\n\n")             // collapse excess newlines
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-function severityStyle(sev: string | null | undefined) {
-  switch (sev) {
-    case "critical":
-      return "text-error border-error bg-error-container/30";
-    case "high":
-      return "text-tertiary-container border-tertiary bg-tertiary-container/15";
-    case "medium":
-      return "text-primary border-primary bg-primary-fixed-dim/20";
-    case "low":
-      return "text-primary border-primary/60";
-    default:
-      return "text-on-surface-variant border-outline bg-surface-container";
-  }
 }
 
 type SeverityMode = "critical_high" | "all" | "single";
 
-const THREAT_FEED_PAGE_SIZE = 15;
+const THREAT_FEED_PAGE_SIZE = 20;
 
 function firstString(v: string | string[] | undefined): string {
   if (v === undefined) return "";
@@ -84,38 +67,26 @@ function buildThreatsHref(patch: {
   return s ? `/threats?${s}` : "/threats";
 }
 
-function severityFilterButtonClass(s: "critical" | "high" | "medium" | "all", active: boolean) {
-  const base =
-    "inline-flex items-center gap-2 rounded border px-3 py-2 font-mono-label uppercase tracking-wide transition-colors";
-  if (!active) {
-    return `${base} border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline hover:bg-surface-container`;
-  }
-  if (s === "critical") return `${base} border-error bg-error-container/35 text-error`;
-  if (s === "high") return `${base} border-tertiary-container bg-tertiary-container/15 text-tertiary-container`;
-  if (s === "all") return `${base} border-outline bg-surface-container text-on-surface`;
-  return `${base} border-primary bg-primary-fixed-dim/25 text-primary`;
+const SEVERITY_CONFIG = {
+  critical: { label: "Critical", color: "text-error", border: "border-error/60", bg: "bg-error-container/30", pill: "bg-error text-white" },
+  high:     { label: "High",     color: "text-tertiary-container", border: "border-tertiary/60", bg: "bg-tertiary-container/15", pill: "bg-tertiary-container text-white" },
+  medium:   { label: "Medium",   color: "text-primary", border: "border-primary/50", bg: "bg-primary-fixed-dim/20", pill: "bg-primary/80 text-white" },
+  low:      { label: "Low",      color: "text-on-surface-variant", border: "border-outline-variant", bg: "bg-surface-container", pill: "bg-outline text-on-surface" },
+} as const;
+
+function SeverityPill({ sev }: { sev: string | null | undefined }) {
+  const cfg = SEVERITY_CONFIG[sev as keyof typeof SEVERITY_CONFIG];
+  if (!cfg) return <span className="rounded-full bg-surface-container px-2 py-0.5 font-mono-label text-xs text-on-surface-variant">n/a</span>;
+  return <span className={`rounded-full px-2.5 py-0.5 font-mono-label text-xs font-semibold uppercase ${cfg.pill}`}>{cfg.label}</span>;
 }
 
-function SeveritySwatch({ s }: { s: "critical" | "high" | "medium" | "all" }) {
-  if (s === "critical") return <span className="h-2 w-2 shrink-0 rounded-sm bg-error" aria-hidden />;
-  if (s === "high") return <span className="h-2 w-2 shrink-0 rounded-sm bg-tertiary-container" aria-hidden />;
-  if (s === "all") return <span className="h-2 w-2 shrink-0 rounded-sm bg-outline" aria-hidden />;
-  return <span className="h-2 w-2 shrink-0 rounded-sm bg-primary" aria-hidden />;
+function filterButtonClass(active: boolean, severity?: keyof typeof SEVERITY_CONFIG) {
+  const base = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors";
+  if (!active) return `${base} border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline hover:bg-surface-container`;
+  if (!severity) return `${base} border-on-surface/40 bg-surface-container text-on-surface`;
+  const cfg = SEVERITY_CONFIG[severity];
+  return `${base} ${cfg.border} ${cfg.bg} ${cfg.color}`;
 }
-
-function feedCardBorderClass(sev: string | null | undefined) {
-  switch (sev) {
-    case "critical":
-      return "border-l-4 border-l-error";
-    case "high":
-      return "border-l-4 border-l-tertiary-container";
-    case "medium":
-      return "border-l-4 border-l-primary";
-    default:
-      return "border-l-4 border-l-outline";
-  }
-}
-
 
 export default async function ThreatsPage({
   searchParams,
@@ -125,11 +96,10 @@ export default async function ThreatsPage({
   const sp = (await searchParams) ?? {};
   const { mode, single, q, page: requestedPage } = parseThreatSearch(sp);
 
-  // Map severity mode → DB severities array
   const severities =
     mode === "critical_high" ? ["critical", "high"] :
     mode === "single" && single ? [single] :
-    []; // empty = all severities
+    [];
 
   let dbPage: ThreatFeedPage = { items: [], total: 0 };
   let matrixRows: Awaited<ReturnType<typeof getLaunchStackThreatSeverityCounts>> = [];
@@ -137,7 +107,6 @@ export default async function ThreatsPage({
   let lastSync: string | null = null;
   let protectByThreat = new Map<string, number>();
   try {
-    // All DB calls in parallel — paginated query is the fast path
     [dbPage, matrixRows, verifiedCount, lastSync, protectByThreat] = await Promise.all([
       listThreatsPagedFromDb({ severities, q, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
       getLaunchStackThreatSeverityCounts(),
@@ -145,9 +114,7 @@ export default async function ThreatsPage({
       getLastCatalogSyncFinishedAt(),
       getRuleCountByThreatPublicId(),
     ]);
-  } catch {
-    /* DB unavailable */
-  }
+  } catch { /* DB unavailable */ }
 
   const paginatedFeed: ThreatFeedItem[] = dbPage.items.map((t) => {
     const item = toFeedItem(t);
@@ -162,261 +129,256 @@ export default async function ThreatsPage({
   const rangeStart = totalFiltered === 0 ? 0 : sliceStart + 1;
   const rangeEnd = Math.min(sliceStart + THREAT_FEED_PAGE_SIZE, totalFiltered);
 
-  const filterLinks = (
-    <>
-      <Link
-        href={buildThreatsHref({ mode: "all", q })}
-        className={severityFilterButtonClass("all", mode === "all")}
-      >
-        <SeveritySwatch s="all" />
-        ALL
-      </Link>
-      <Link
-        href={buildThreatsHref({ mode: "critical_high", q })}
-        className={severityFilterButtonClass("critical", mode === "critical_high")}
-      >
-        <SeveritySwatch s="critical" />
-        CRITICAL+HIGH
-      </Link>
-      {(["critical", "high", "medium"] as const).map((s) => {
-        const active = mode === "single" && single === s;
-        return (
-          <Link
-            key={s}
-            href={buildThreatsHref({ mode: "single", single: s, q })}
-            className={severityFilterButtonClass(s, active)}
-          >
-            <SeveritySwatch s={s} />
-            {s.toUpperCase()}
-          </Link>
-        );
-      })}
-    </>
-  );
+  const activeFilterLabel =
+    mode === "critical_high" ? "Critical + High" :
+    mode === "single" && single ? SEVERITY_CONFIG[single as keyof typeof SEVERITY_CONFIG]?.label ?? single :
+    "All severities";
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)]">
-      <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" aria-hidden />
-      <div className="relative mx-auto w-full max-w-7xl px-gutter py-10">
-        <header className="relative mb-8 space-y-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-on-surface">Threat intelligence</h1>
-              <span className="inline-flex items-center gap-1.5 rounded border border-primary/40 bg-primary-fixed-dim/25 px-2.5 py-1 font-mono-label text-primary">
-                <MaterialSymbol name="verified" className="!text-base" aria-hidden />
-                Verified CVEs
-              </span>
-            </div>
-            <p className="mt-2 max-w-2xl text-body-sm text-on-surface-variant">
-              {verifiedCount} threats tracked across MVP launch stacks — each entry links to NVD or a published advisory.
-              {lastSync ? (
-                <>
-                  {" "}
-                  Last pipeline sync:{" "}
-                  <time dateTime={lastSync}>{new Date(lastSync).toLocaleString()}</time>.
-                </>
-              ) : null}
-            </p>
-          </div>
+    <div className="min-h-[calc(100vh-3.5rem)] bg-background">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by severity">
-              {filterLinks}
-            </div>
-            <form
-              action="/threats"
-              method="get"
-              className="flex w-full min-w-0 sm:w-auto sm:max-w-md sm:flex-1 sm:justify-end lg:max-w-lg"
-            >
-              {mode === "single" && single ? <input type="hidden" name="severity" value={single} /> : null}
-              {mode === "all" ? <input type="hidden" name="severity" value="all" /> : null}
-              {/* New search resets to page 1 (page param omitted) */}
-              <div className="relative w-full min-w-0 sm:min-w-[280px]">
-                <MaterialSymbol
-                  name="search"
-                  className="pointer-events-none absolute left-3 top-1/2 !text-xl -translate-y-1/2 text-on-surface-variant"
-                />
-                <input
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Search threats..."
-                  className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-11 pr-3 text-sm text-on-surface shadow-sm outline-none transition-colors placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-            </form>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <header className="mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">Threat Intelligence</h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary-fixed-dim/25 px-2.5 py-1 font-mono-label text-xs text-primary">
+              <MaterialSymbol name="verified" className="!text-sm" aria-hidden />
+              Live CVE feed
+            </span>
           </div>
+          <p className="mt-2 text-sm text-on-surface-variant">
+            <span className="font-semibold text-on-surface">{verifiedCount}</span> threats tracked across 6 launch stacks — sourced from NVD, GHSA, CISA KEV, and OSV.
+            {lastSync ? (
+              <> Updated <time dateTime={lastSync}>{new Date(lastSync).toLocaleDateString()}</time>.</>
+            ) : null}
+          </p>
         </header>
 
-        <div className="relative grid gap-8 lg:grid-cols-12">
-          <div className="space-y-6 lg:col-span-7">
-            <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-on-surface">Launch stacks · severity counts</h2>
-                <span className="font-mono-label text-on-surface-variant">From catalog DB</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[360px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-outline-variant font-mono-label text-on-surface-variant">
-                      <th className="py-2 text-left">Stack</th>
-                      <th className="py-2 text-right text-error">Critical</th>
-                      <th className="py-2 text-right text-tertiary-container">High</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {matrixRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-4 text-on-surface-variant">
-                          No matrix data. Run migrations and seed.
-                        </td>
-                      </tr>
-                    ) : (
-                      matrixRows.map((row) => (
-                        <tr key={row.slug} className="border-b border-outline-variant/60">
-                          <td className="py-2 font-medium text-on-surface">{row.name}</td>
-                          <td className="py-2 text-right font-mono-data">{row.critical}</td>
-                          <td className="py-2 text-right font-mono-data">{row.high}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+        {/* ── Severity stats strip ────────────────────────────────────────── */}
+        {matrixRows.length > 0 && (
+          <div className="mb-6 overflow-x-auto">
+            <div className="flex min-w-max gap-3">
+              {matrixRows.slice(0, 6).map((row) => (
+                <div key={row.slug} className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-xs whitespace-nowrap">
+                  <span className="font-medium text-on-surface">{row.name}</span>
+                  <span className="font-semibold text-error">{row.critical} critical</span>
+                  <span className="text-outline-variant">·</span>
+                  <span className="font-semibold text-tertiary-container">{row.high} high</span>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
-          <div className="flex flex-col gap-4 lg:col-span-5">
-            {/* Composer bridge CTA */}
-            <div className="rounded-lg border border-primary/30 bg-primary-fixed-dim/10 px-4 py-3 text-sm">
-              <p className="text-on-surface">
-                Every CVE below links to a stack-matched guardrail.{" "}
-                <Link href="/composer" className="font-semibold text-primary hover:underline">
-                  Get yours in the Composer →
-                </Link>
-              </p>
-            </div>
+        {/* ── Filters + search ───────────────────────────────────────────── */}
+        <div className="mb-6 space-y-3">
+          {/* Severity filters — scrollable on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by severity">
+            <Link href={buildThreatsHref({ mode: "all", q })} className={filterButtonClass(mode === "all")}>
+              All
+            </Link>
+            <Link href={buildThreatsHref({ mode: "critical_high", q })} className={filterButtonClass(mode === "critical_high", "critical")}>
+              <span className="h-1.5 w-1.5 rounded-full bg-error" />
+              Critical + High
+            </Link>
+            {(["critical", "high", "medium", "low"] as const).map((s) => (
+              <Link key={s} href={buildThreatsHref({ mode: "single", single: s, q })} className={filterButtonClass(mode === "single" && single === s, s)}>
+                {SEVERITY_CONFIG[s].label}
+              </Link>
+            ))}
+          </div>
 
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <h2 className="font-mono-label text-on-surface-variant">Threat feed</h2>
-              {totalFiltered > 0 ? (
-                <p className="font-mono-data text-sm text-on-surface-variant">
-                  Showing {rangeStart}–{rangeEnd} of {totalFiltered}
-                  {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : null}
-                </p>
-              ) : null}
+          {/* Search row */}
+          <form action="/threats" method="get" className="flex gap-2">
+            {mode === "critical_high" && <input type="hidden" name="severity" value="critical_high" />}
+            {mode === "single" && single && <input type="hidden" name="severity" value={single} />}
+            <div className="relative flex-1">
+              <MaterialSymbol name="search" className="pointer-events-none absolute left-3 top-1/2 !text-lg -translate-y-1/2 text-on-surface-variant" />
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Search CVEs, packages, keywords..."
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-10 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+              />
             </div>
-            <div className="space-y-4">
-              {totalFiltered === 0 ? (
-                <p className="rounded-lg border border-outline-variant bg-surface-container-low p-6 text-sm text-on-surface-variant">
-                  No threats match.{" "}
-                  <Link href="/threats" className="text-primary hover:underline">
-                    Reset filters
-                  </Link>
-                </p>
-              ) : (
-                paginatedFeed.map((t) => (
-                  <article
-                    key={t.publicId}
-                    className={`rounded-lg border border-y border-r border-outline-variant bg-surface-container-lowest p-5 transition-colors hover:border-primary/40 ${feedCardBorderClass(t.severity)}`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded px-2 py-0.5 font-mono-label uppercase ${severityStyle(t.severity)}`}>
-                            {t.severity ?? "n/a"}
-                          </span>
-                          {t.referenceUrl ? (
-                            <a
-                              href={t.referenceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-sm font-mono-data text-primary underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-primary/40"
-                            >
-                              {t.cveLabel ?? t.publicId}
-                              <MaterialSymbol name="open_in_new" className="!text-base" aria-hidden />
-                              <span className="sr-only">Opens reference in a new tab</span>
-                            </a>
-                          ) : null}
-                        </div>
-                        <h3 className="mt-2 text-lg font-semibold text-on-surface">{t.name}</h3>
-                        {t.description ? (
-                          <p className="mt-2 line-clamp-4 text-body-sm text-on-surface-variant">{stripMarkdown(t.description)}</p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {t.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded border border-outline-variant bg-surface-container px-2 py-0.5 font-mono-label text-on-surface-variant"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                        <Link
-                          href="/composer"
-                          className="mt-2 inline-flex items-center gap-1 font-mono-label text-xs text-primary hover:underline"
+            {q && (
+              <Link
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined })}
+                className="flex items-center rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-sm text-on-surface-variant hover:bg-surface-container"
+              >
+                Clear
+              </Link>
+            )}
+          </form>
+        </div>
+
+        {/* ── Results meta + CTA ─────────────────────────────────────────── */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+            {totalFiltered > 0 ? (
+              <>
+                <span className="font-semibold text-on-surface">{totalFiltered}</span>
+                <span>threats · {activeFilterLabel}</span>
+                {totalPages > 1 && (
+                  <span className="text-on-surface-variant/60">· page {page}/{totalPages}</span>
+                )}
+              </>
+            ) : (
+              <span>No threats match</span>
+            )}
+          </div>
+          <Link
+            href="/composer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90"
+          >
+            <MaterialSymbol name="shield" className="!text-sm" />
+            Get guardrails →
+          </Link>
+        </div>
+
+        {/* ── Threat cards ───────────────────────────────────────────────── */}
+        <div className="space-y-3">
+          {totalFiltered === 0 ? (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-low p-10 text-center">
+              <MaterialSymbol name="search_off" className="!text-4xl text-on-surface-variant/40" />
+              <p className="mt-3 text-sm text-on-surface-variant">No threats match your filters.</p>
+              <Link href="/threats" className="mt-2 inline-block text-sm text-primary hover:underline">Clear filters</Link>
+            </div>
+          ) : (
+            paginatedFeed.map((t) => {
+              const cfg = SEVERITY_CONFIG[t.severity as keyof typeof SEVERITY_CONFIG];
+              const borderColor = cfg ? `border-l-[3px] ${
+                t.severity === "critical" ? "border-l-error" :
+                t.severity === "high" ? "border-l-tertiary-container" :
+                t.severity === "medium" ? "border-l-primary" : "border-l-outline"
+              }` : "";
+              return (
+                <article
+                  key={t.publicId}
+                  className={`rounded-xl border border-outline-variant bg-surface-container-lowest p-4 transition-colors hover:border-primary/30 hover:bg-surface-container-low sm:p-5 ${borderColor}`}
+                >
+                  {/* Top row: severity + CVE ID + rules badge */}
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SeverityPill sev={t.severity} />
+                      {t.referenceUrl ? (
+                        <a
+                          href={t.referenceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-mono-data text-xs text-primary hover:underline"
                         >
-                          Get a guardrail for your stack →
-                        </Link>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end justify-start gap-2 pt-0.5">
-                        <span className="whitespace-nowrap rounded-full border border-primary/35 bg-primary-fixed-dim/20 px-3 py-1 font-mono-label text-primary">
-                          {t.rulesProtect} {t.rulesProtect === 1 ? "rule" : "rules"} protect
-                        </span>
-                      </div>
+                          {t.cveLabel ?? t.publicId}
+                          <MaterialSymbol name="open_in_new" className="!text-xs" aria-hidden />
+                        </a>
+                      ) : (
+                        <span className="font-mono-data text-xs text-on-surface-variant">{t.publicId}</span>
+                      )}
                     </div>
-                  </article>
-                ))
+                    {t.rulesProtect > 0 && (
+                      <span className="shrink-0 rounded-full border border-primary/30 bg-primary-fixed-dim/20 px-2 py-0.5 font-mono-label text-xs text-primary">
+                        {t.rulesProtect} {t.rulesProtect === 1 ? "rule" : "rules"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="mt-2 text-base font-semibold leading-snug text-on-surface sm:text-lg">{t.name}</h2>
+
+                  {/* Description */}
+                  {t.description && (
+                    <p className="mt-1.5 line-clamp-3 text-sm text-on-surface-variant">
+                      {stripMarkdown(t.description)}
+                    </p>
+                  )}
+
+                  {/* Tags + CTA */}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {t.tags.slice(0, 4).map((tag) => (
+                        <span key={tag} className="rounded border border-outline-variant bg-surface-container px-2 py-0.5 font-mono-label text-xs text-on-surface-variant">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <Link href="/composer" className="shrink-0 font-mono-label text-xs text-primary hover:underline">
+                      Get guardrail →
+                    </Link>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
+
+        {/* ── Pagination ─────────────────────────────────────────────────── */}
+        {totalFiltered > 0 && totalPages > 1 && (
+          <nav className="mt-8 flex items-center justify-between gap-4 border-t border-outline-variant pt-6" aria-label="Pagination">
+            {page <= 1 ? (
+              <span className="flex items-center gap-1.5 rounded-lg border border-outline-variant/50 px-4 py-2 text-sm text-on-surface-variant/40">
+                <MaterialSymbol name="chevron_left" className="!text-base" />
+                Previous
+              </span>
+            ) : (
+              <Link
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: page - 1 })}
+                className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
+                prefetch={false}
+              >
+                <MaterialSymbol name="chevron_left" className="!text-base" />
+                Previous
+              </Link>
+            )}
+
+            <div className="flex items-center gap-1">
+              {/* Page number pills — show at most 5 */}
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const p2 = totalPages <= 5 ? i + 1 : Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                return (
+                  <Link
+                    key={p2}
+                    href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: p2 === 1 ? undefined : p2 })}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${
+                      p2 === page
+                        ? "border-primary bg-primary text-white"
+                        : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary/50"
+                    }`}
+                    prefetch={false}
+                  >
+                    {p2}
+                  </Link>
+                );
+              })}
+              {totalPages > 5 && page < totalPages - 2 && (
+                <span className="px-1 text-xs text-on-surface-variant">…{totalPages}</span>
               )}
             </div>
-            {totalFiltered > 0 && totalPages > 1 ? (
-              <nav
-                className="flex flex-col gap-3 border-t border-outline-variant pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-                aria-label="Threat feed pagination"
+
+            {page >= totalPages ? (
+              <span className="flex items-center gap-1.5 rounded-lg border border-outline-variant/50 px-4 py-2 text-sm text-on-surface-variant/40">
+                Next
+                <MaterialSymbol name="chevron_right" className="!text-base" />
+              </span>
+            ) : (
+              <Link
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, q, page: page + 1 })}
+                className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
+                prefetch={false}
               >
-                {page <= 1 ? (
-                  <span className="rounded-lg border border-outline-variant/50 px-4 py-2 font-mono-label text-sm text-on-surface-variant/40">
-                    Previous
-                  </span>
-                ) : (
-                  <Link
-                    href={buildThreatsHref({
-                      mode,
-                      single: mode === "single" ? single : undefined,
-                      q,
-                      page: page - 1,
-                    })}
-                    className="rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 font-mono-label text-sm text-on-surface hover:border-primary hover:bg-surface-container"
-                    prefetch={false}
-                  >
-                    Previous
-                  </Link>
-                )}
-                <span className="font-mono-data text-sm text-on-surface-variant">
-                  Page {page} / {totalPages}
-                </span>
-                {page >= totalPages ? (
-                  <span className="rounded-lg border border-outline-variant/50 px-4 py-2 font-mono-label text-sm text-on-surface-variant/40">
-                    Next
-                  </span>
-                ) : (
-                  <Link
-                    href={buildThreatsHref({
-                      mode,
-                      single: mode === "single" ? single : undefined,
-                      q,
-                      page: page + 1,
-                    })}
-                    className="rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 font-mono-label text-sm text-on-surface hover:border-primary hover:bg-surface-container"
-                    prefetch={false}
-                  >
-                    Next
-                  </Link>
-                )}
-              </nav>
-            ) : null}
-          </div>
-        </div>
+                Next
+                <MaterialSymbol name="chevron_right" className="!text-base" />
+              </Link>
+            )}
+          </nav>
+        )}
+
+        {/* ── Showing range ──────────────────────────────────────────────── */}
+        {totalFiltered > 0 && (
+          <p className="mt-4 text-center text-xs text-on-surface-variant/60">
+            Showing {rangeStart}–{rangeEnd} of {totalFiltered} threats
+          </p>
+        )}
       </div>
     </div>
   );

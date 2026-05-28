@@ -6,7 +6,6 @@ import { useMemo, useState, useTransition } from "react";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
 import { filterDirectoryCards } from "@/lib/rules-directory-filters";
-import type { LayerWithStats } from "@/lib/catalog-from-db";
 import type { RuleDirectoryCard } from "@/lib/rules-directory-showcase";
 
 type Stack = { slug: string; name: string; catalogStatus: string };
@@ -35,6 +34,21 @@ type Props = {
   stats: { totalRules: number; stacksCovered: number; avgStrength: number };
 };
 
+// Module-level constant — never changes, safe to reference in useMemo without deps
+const STACK_SLUG_TO_HINT: Record<string, string> = {
+  nextjs: "next",
+  express: "express",
+  fastapi: "fastapi",
+  nestjs: "nestjs",
+  nuxt: "nuxt",
+  "react-spa": "react",
+  django: "django",
+  rails: "rails",
+  go: "go",
+  ios: "ios",
+  android: "android",
+};
+
 export function ExploreClient({ allCards, stacks, stats }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,21 +65,6 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
     else params.delete(key);
     startTransition(() => router.replace(`/explore?${params.toString()}`, { scroll: false }));
   }
-
-  // Map stack slugs (from URL params) to partial name hints for matching against card.stacks display names
-  const STACK_SLUG_TO_HINT: Record<string, string> = {
-    nextjs: "next",
-    express: "express",
-    fastapi: "fastapi",
-    nestjs: "nestjs",
-    nuxt: "nuxt",
-    "react-spa": "react",
-    django: "django",
-    rails: "rails",
-    go: "go",
-    ios: "ios",
-    android: "android",
-  };
 
   const filteredCards = useMemo(() => {
     let cards = allCards;
@@ -90,7 +89,7 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Explore Guardrails</h1>
         <p className="mt-2 text-on-surface-variant">
-          Filter by layer, type, and stack. All {stats.totalRules} rules, instant response.
+          Filter by type and stack. All {stats.totalRules} rules, instant response.
         </p>
       </header>
 
@@ -130,9 +129,9 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
 
 
         {/* Type + Stack row */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex flex-wrap gap-2">
-            <span className="self-center text-xs text-on-surface-variant">Type:</span>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2 overflow-x-auto pb-0.5">
+            <span className="self-center text-xs text-on-surface-variant shrink-0">Type:</span>
             <button
               onClick={() => setParam("type", "")}
               className={`rounded-full px-3 py-1 text-xs transition-colors ${
@@ -158,8 +157,8 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span className="self-center text-xs text-on-surface-variant">Stack:</span>
+          <div className="flex flex-wrap gap-2 overflow-x-auto pb-0.5">
+            <span className="self-center text-xs text-on-surface-variant shrink-0">Stack:</span>
             <button
               onClick={() => setParam("stack", "")}
               className={`rounded-full px-3 py-1 text-xs transition-colors ${

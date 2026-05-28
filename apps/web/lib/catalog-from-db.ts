@@ -1,5 +1,5 @@
 import type { components } from "@aigently/api-client";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   db,
