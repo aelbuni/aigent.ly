@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -33,8 +34,15 @@ export function SiteHeader() {
     <>
       <header className="fixed top-0 z-50 flex h-14 w-full items-center justify-between border-b-[0.5px] border-slate-200 bg-white px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-bold tracking-tighter text-slate-900">
-            Aigent.ly
+          <Link href="/" className="flex items-center" aria-label="Aigent.ly home">
+            <Image
+              src="/logo-light.svg"
+              alt="Aigent.ly"
+              width={134}
+              height={32}
+              className="h-7 w-auto"
+              priority
+            />
           </Link>
           <nav className="hidden items-center gap-6 font-sans md:flex">
             {nav.map((item) => {

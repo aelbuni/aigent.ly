@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function SiteFooter() {
@@ -5,7 +6,13 @@ export function SiteFooter() {
     <footer className="w-full border-t border-slate-800 bg-slate-950 py-12">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-12 md:grid-cols-4">
         <div className="col-span-2 md:col-span-1">
-          <span className="mb-4 block font-bold text-indigo-500">Aigent.ly</span>
+          <Image
+            src="/logo-dark-transparent.svg"
+            alt="Aigent.ly"
+            width={117}
+            height={28}
+            className="mb-4 h-7 w-auto"
+          />
           <p className="font-mono text-[10px] uppercase leading-relaxed text-slate-500">
             © 2026 Aigent.ly Security. Technical Minimalism via DM Mono.
           </p>
