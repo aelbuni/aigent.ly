@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# apps/web
 
-## Getting Started
+Next.js 15 (App Router) — the marketing site and admin dashboard for [aigent.ly](https://aigent.ly).
 
-First, run the development server:
+## Routes
+
+| Group | URL prefix | What it is |
+|-------|-----------|------------|
+| Marketing | `/` `/stacks` `/threats` `/composer` `/explore` `/rules` `/learn` | Public-facing pages |
+| Admin | `/admin/*` | Protected dashboard (GitHub OAuth + DB role check) |
+| API (internal) | `/api/*` | Server actions and admin stream endpoints |
+
+## Local dev
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# From repo root
+npm install
+cp apps/web/.env.example apps/web/.env
+# Fill in DATABASE_URL, AUTH_SECRET, ANTHROPIC_API_KEY
+npm run db:setup   # starts Postgres, migrates, seeds
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## CSS / styling
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Marketing** — `app/(marketing)/site.css` (Material-style design tokens)
+- **Admin** — `app/(admin)/admin.css` (NextAdmin layout, scoped to admin route group)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Restart `npm run dev` after changing `next.config.ts` or layout CSS files.
 
-## Learn More
+## Key directories
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/(marketing)/    # Public pages — threats, stacks, composer, explore, rules
+app/(admin)/admin/  # Admin dashboard pages
+components/
+  home/             # Homepage sections (Hero, MCP, JTBD, StatBand, etc.)
+  composer/         # Rule Composer client component
+  nextadmin/        # Admin UI framework (AdminDataTable, AdminPageHeader, etc.)
+lib/
+  admin-queries.ts          # All admin DB queries
+  catalog-from-db.ts        # All public DB queries
+  composer-export.ts        # Guardrail file builder
+  home-marketing-content.ts # Homepage copy (single source of truth)
+scripts/            # Pipeline scripts (sync, amplify, summarize, export)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Build
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build -w web   # production build
+npm run start -w web   # serve production build (stop dev first)
+```

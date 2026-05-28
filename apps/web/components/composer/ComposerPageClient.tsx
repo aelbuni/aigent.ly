@@ -152,7 +152,7 @@ export function ComposerPageClient({
       <header className="mb-10">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Rule Composer</h1>
         <p className="mt-2 max-w-2xl text-body-base text-on-surface-variant">
-          Select your stack, IDE, and protection layers — get the right file, ready to paste.
+          Select your stack, IDE, and rule type — get a ready-to-paste guardrail file in seconds.
         </p>
       </header>
 
@@ -288,7 +288,7 @@ export function ComposerPageClient({
           <Section step="04" title="Generate">
             <div className="space-y-3">
               <p className="font-body-sm text-on-surface-variant">
-                Merges all selected layers into a single{" "}
+                Merges all selected rules into a single{" "}
                 <code className="font-mono text-xs">{fileHint.split("/").pop()}</code> file formatted for{" "}
                 <strong>{initialIdes.find((i) => i.slug === ideSlug)?.name ?? ideSlug}</strong>.
               </p>

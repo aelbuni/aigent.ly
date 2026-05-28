@@ -6,6 +6,7 @@ import { HomeHeroValue } from "@/components/home/HomeHeroValue";
 import { HomeLaunchStacks } from "@/components/home/HomeLaunchStacks";
 import { HomeJtbdSteps } from "@/components/home/HomeJtbdSteps";
 import { HomeLiveThreatFeed } from "@/components/home/HomeLiveThreatFeed";
+import { HomeMcpSection } from "@/components/home/HomeMcpSection";
 import { HomeMarqueeStrip } from "@/components/home/HomeMarqueeStrip";
 import { HomePersonaGrid } from "@/components/home/HomePersonaGrid";
 import { HomeStatBand } from "@/components/home/HomeStatBand";
@@ -29,6 +30,7 @@ export function HomeView({
       <HomeLaunchStacks stacks={launchStacks} />
       <HomePersonaGrid />
       <HomeJtbdSteps />
+      <HomeMcpSection />
       <HomeStatBand verifiedThreatCount={verifiedThreatCount} />
       <HomeLiveThreatFeed threats={topThreats} />
       <HomeDifferentiators />

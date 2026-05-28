@@ -54,9 +54,9 @@ function firstString(v: string | string[] | undefined): string {
 
 function parseThreatSearch(sp: Record<string, string | string[] | undefined> | undefined) {
   const raw = firstString(sp?.severity);
-  let mode: SeverityMode = "critical_high";
+  let mode: SeverityMode = "all";
   let single: "" | "critical" | "high" | "medium" | "low" = "";
-  if (raw === "all") mode = "all";
+  if (raw === "critical_high" || raw === "critical+high") mode = "critical_high";
   else if (raw === "critical" || raw === "high" || raw === "medium" || raw === "low") {
     mode = "single";
     single = raw;
@@ -74,8 +74,8 @@ function buildThreatsHref(patch: {
   page?: number;
 }) {
   const p = new URLSearchParams();
-  if (patch.mode === "all") p.set("severity", "all");
-  else if (patch.mode === "critical_high") {
+  if (patch.mode === "critical_high") p.set("severity", "critical_high");
+  else if (patch.mode === "all") {
     /* default — omit param */
   } else if (patch.single) p.set("severity", patch.single);
   if (patch.q) p.set("q", patch.q);
@@ -129,7 +129,7 @@ export default async function ThreatsPage({
   const severities =
     mode === "critical_high" ? ["critical", "high"] :
     mode === "single" && single ? [single] :
-    []; // empty = all
+    []; // empty = all severities
 
   let dbPage: ThreatFeedPage = { items: [], total: 0 };
   let matrixRows: Awaited<ReturnType<typeof getLaunchStackThreatSeverityCounts>> = [];
@@ -165,6 +165,13 @@ export default async function ThreatsPage({
   const filterLinks = (
     <>
       <Link
+        href={buildThreatsHref({ mode: "all", q })}
+        className={severityFilterButtonClass("all", mode === "all")}
+      >
+        <SeveritySwatch s="all" />
+        ALL
+      </Link>
+      <Link
         href={buildThreatsHref({ mode: "critical_high", q })}
         className={severityFilterButtonClass("critical", mode === "critical_high")}
       >
@@ -184,13 +191,6 @@ export default async function ThreatsPage({
           </Link>
         );
       })}
-      <Link
-        href={buildThreatsHref({ mode: "all", q })}
-        className={severityFilterButtonClass("all", mode === "all")}
-      >
-        <SeveritySwatch s="all" />
-        ALL
-      </Link>
     </>
   );
 

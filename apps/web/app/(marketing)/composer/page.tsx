@@ -3,7 +3,7 @@ import { ComposerPageClient } from "@/components/composer/ComposerPageClient";
 
 export const metadata = {
   title: "Rule Composer — Aigent.ly",
-  description: "Build your AI security ruleset in seconds. Select stack, IDE, and rule type to generate a ready-to-use rules file.",
+  description: "Generate a stack-matched security guardrail file for Cursor, Claude Code, Windsurf, or Copilot in under a minute. Free, no sign-up required.",
 };
 
 export default async function ComposerPage() {
