@@ -67,9 +67,9 @@ export const metadata: Metadata = {
       "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates injected directly into Cursor, Claude Code, Windsurf, and Copilot.",
     images: [
       {
-        url: `${BASE_URL}/og-logo.png`,
-        width: 512,
-        height: 512,
+        url: `${BASE_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
         alt: "Aigent.ly — open-source vulnerability prevention layer",
         type: "image/png",
       },
@@ -77,9 +77,9 @@ export const metadata: Metadata = {
     locale: "en_US",
   },
 
-  // Twitter / X Card
+  // Twitter / X Card — large image banner
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     site: "@aigently",
     creator: "@aigently",
     title: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
@@ -87,8 +87,8 @@ export const metadata: Metadata = {
       "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates injected directly into Cursor, Claude Code, and Copilot.",
     images: [
       {
-        url: `${BASE_URL}/og-logo.png`,
-        alt: "Aigent.ly logo",
+        url: `${BASE_URL}/og-image.png`,
+        alt: "Aigent.ly — white wordmark on dark background",
       },
     ],
   },

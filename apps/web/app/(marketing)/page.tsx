@@ -20,19 +20,19 @@ export const metadata: Metadata = {
     url: "https://aigent.ly",
     images: [
       {
-        url: "https://aigent.ly/og-logo.png",
-        width: 512,
-        height: 512,
+        url: "https://aigent.ly/og-image.png",
+        width: 1200,
+        height: 630,
         alt: "Aigent.ly — open-source vulnerability prevention layer",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
     description:
       "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates injected into Cursor, Claude Code, and Copilot.",
-    images: ["https://aigent.ly/og-logo.png"],
+    images: ["https://aigent.ly/og-image.png"],
   },
 };
 
