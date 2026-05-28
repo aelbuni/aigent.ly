@@ -3,7 +3,7 @@ import { type GuardrailForExport, listGuardrailsForComposerExport, listRulesForC
 export type ComposerExportInput = {
   stackSlug: string;
   ideSlug: string;
-  layers: string[];
+  ruleType?: "all" | "patterns" | "deps";
 };
 
 function ideRuleFileExtension(ideSlug: string): "mdc" | "md" {
@@ -49,7 +49,7 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
 
   // ── Primary path: use per-layer AI-synthesized guardrails ──────────────────
   // These are composable: one section per selected layer, no cross-layer content.
-  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.ruleType ?? "all");
 
   if (guardrails.length > 0) {
     const layerCount = guardrails.length;
@@ -94,7 +94,7 @@ export async function buildComposerMarkdownExport(input: ComposerExportInput) {
   }
 
   // ── Fallback path: raw rules (used when guardrails haven't been generated yet) ──
-  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.ruleType ?? "all");
 
   if (rules.length === 0) {
     return {
@@ -151,7 +151,7 @@ export async function buildSkillMdExport(input: ComposerExportInput & { stackNam
   ].join("\n");
 
   // Prefer per-layer guardrails (composable, deduplicated, WHEN/THEN structured)
-  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.layers);
+  const guardrails = await listGuardrailsForComposerExport(input.stackSlug, input.ruleType ?? "all");
   if (guardrails.length > 0) {
     const body = guardrails.map((g) => g.content.trim()).filter(Boolean).join("\n\n---\n\n");
     return {
@@ -162,7 +162,7 @@ export async function buildSkillMdExport(input: ComposerExportInput & { stackNam
   }
 
   // Fallback to raw rules
-  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.layers);
+  const rules = await listRulesForComposerExport(input.stackSlug, input.ideSlug, input.ruleType ?? "all");
   if (rules.length === 0) {
     return {
       format: "markdown" as const,

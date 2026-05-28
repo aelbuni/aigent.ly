@@ -15,7 +15,7 @@ import { AdminPageHeader, AdminPagination } from "@/components/nextadmin/admin-p
 import Link from "next/link";
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
-import { db, layer, stack, ruleStack, summarizedGuardrail } from "@/lib/db";
+import { db, stack, ruleStack, summarizedGuardrail } from "@/lib/db";
 import { listGuardrails, getGuardrailCoverage } from "@/lib/admin-queries";
 import { runSummarizerForLayer } from "@/lib/summarizer/pipeline";
 import { BulkGeneratePanel } from "@/features/admin-guardrails/components/bulk-generate-panel";

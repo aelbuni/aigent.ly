@@ -3,7 +3,7 @@ import { AdminStatusPill } from "@/components/nextadmin/admin-data-table";
 import { scoreAndRegenerate } from "@/features/admin-guardrails/actions/guardrail-actions";
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
-import { db, layer, stack, summarizedGuardrail } from "@/lib/db";
+import { db, stack, summarizedGuardrail } from "@/lib/db";
 import { runSummarizerForLayer } from "@/lib/summarizer/pipeline";
 import { cn } from "@/lib/utils";
 import { eq } from "drizzle-orm";

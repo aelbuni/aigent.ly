@@ -194,7 +194,7 @@ export async function getValidLayerSlugs(): Promise<Set<string>> {
 export async function listRulesForComposerExport(
   stackSlug: string,
   ideSlug: string,
-  layerSlugs: string[]
+  ruleType: "all" | "patterns" | "deps" = "all"
 ) {
   const whereBase = and(eq(stack.slug, stackSlug), eq(ide.slug, ideSlug));
 
@@ -217,42 +217,12 @@ export async function listRulesForComposerExport(
     .where(whereBase)
     .orderBy(asc(rule.slug));
 
-  if (layerSlugs.length === 0) return candidates;
+  if (ruleType === "all") return candidates;
 
-  const ruleIds = candidates.map((c) => c.id);
-  if (ruleIds.length === 0) return [];
-
-  const layerRows = await db
-    .select({ ruleId: ruleLayerMap.ruleId, layerSlug: layer.slug })
-    .from(ruleLayerMap)
-    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
-    .where(
-      and(
-        inArray(ruleLayerMap.ruleId, ruleIds),
-        inArray(layer.slug, layerSlugs)
-      )
-    );
-
-  const byRule = new Map<string, Set<string>>();
-  for (const row of layerRows) {
-    let set = byRule.get(row.ruleId);
-    if (!set) {
-      set = new Set();
-      byRule.set(row.ruleId, set);
-    }
-    set.add(row.layerSlug);
-  }
-
-  // Include rule if it covers ANY of the requested layers (OR semantics).
-  // AND semantics (every layer required) produced empty results when users
-  // select a broad layer set but individual rules only cover a subset.
+  const depsPattern = /-security-deps-v\d+$/i;
   return candidates.filter((c) => {
-    const got = byRule.get(c.id);
-    if (!got) return false;
-    for (const l of layerSlugs) {
-      if (got.has(l)) return true;
-    }
-    return false;
+    const isDeps = depsPattern.test(c.slug);
+    return ruleType === "deps" ? isDeps : !isDeps;
   });
 }
 
@@ -271,47 +241,37 @@ export type GuardrailForExport = {
   threats: ThreatMeta[];
 };
 
-/** Per-layer AI-synthesized guardrails for the Composer export.
- *  Returns one row per (stack, layer) pair, ordered by layer sort order.
- *  Each row includes the threat metadata (CVE ID, severity, name) for
- *  the rules that contributed to the guardrail. */
+/** AI-synthesized guardrails for the Composer export keyed by (stack, contentType). */
 export async function listGuardrailsForComposerExport(
   stackSlug: string,
-  layerSlugs: string[]
+  ruleType: "all" | "patterns" | "deps" = "all"
 ): Promise<GuardrailForExport[]> {
-  if (layerSlugs.length === 0) return [];
+  const contentTypes: Array<"patterns" | "deps"> =
+    ruleType === "all" ? ["patterns", "deps"] :
+    ruleType === "patterns" ? ["patterns"] : ["deps"];
+
   const rows = await db
     .select({
-      layerSlug: layer.slug,
-      layerName: layer.name,
+      contentType: summarizedGuardrail.contentType,
       content: summarizedGuardrail.content,
       sourceRuleIds: summarizedGuardrail.sourceRuleIds,
       generatedAt: summarizedGuardrail.generatedAt,
     })
     .from(summarizedGuardrail)
     .innerJoin(stack, eq(stack.id, summarizedGuardrail.stackId))
-    .innerJoin(layer, eq(layer.id, summarizedGuardrail.layerId))
     .where(
       and(
         eq(stack.slug, stackSlug),
-        inArray(layer.slug, layerSlugs)
+        inArray(summarizedGuardrail.contentType, contentTypes)
       )
     )
-    .orderBy(asc(layer.sortOrder));
+    .orderBy(asc(summarizedGuardrail.contentType));
 
-  // Deduplicate: keep newest guardrail per layer slug
-  const seen = new Map<string, typeof rows[number]>();
-  for (const row of rows) {
-    const existing = seen.get(row.layerSlug);
-    if (!existing || (row.generatedAt && existing.generatedAt && row.generatedAt > existing.generatedAt)) {
-      seen.set(row.layerSlug, row);
-    }
-  }
-  const deduped = [...seen.values()].sort((a, b) => {
-    const ai = rows.findIndex((r) => r.layerSlug === a.layerSlug);
-    const bi = rows.findIndex((r) => r.layerSlug === b.layerSlug);
-    return ai - bi;
-  });
+  const deduped = rows.map((row) => ({
+    ...row,
+    layerSlug: row.contentType === "deps" ? "dependency_supply" : "auth_session",
+    layerName: row.contentType === "deps" ? "Dependency & Supply Chain" : "Security Patterns",
+  }));
 
   // Fetch threat metadata for each guardrail via its source rules
   const result: GuardrailForExport[] = [];

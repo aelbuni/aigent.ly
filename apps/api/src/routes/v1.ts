@@ -47,51 +47,51 @@ const UUID_RE =
 async function executeBulkGuardrailGeneration(
   mode: "empty" | "stale" | "all"
 ): Promise<{ generated: number; skipped: number; errors: string[] }> {
-  const { eq, and, lt, isNull, isNotNull, inArray } = await import("drizzle-orm");
+  const { eq, and } = await import("drizzle-orm");
   const { db } = await import("../lib/db.js");
-  const { stack, layer, rule, ruleLayerMap, ruleStack, summarizedGuardrail } = await import("@aigently/db/schema");
+  const { stack, rule, ruleStack, summarizedGuardrail } = await import("@aigently/db/schema");
 
-  // Collect all active (stack, layer) pairs
-  const pairs = await db
-    .selectDistinct({ stackSlug: stack.slug, layerSlug: layer.slug, stackId: stack.id, layerId: layer.id })
+  // Collect all stacks that have rules
+  const stackRows = await db
+    .selectDistinct({ stackSlug: stack.slug, stackId: stack.id })
     .from(rule)
     .innerJoin(ruleStack, eq(ruleStack.ruleId, rule.id))
-    .innerJoin(stack, eq(stack.id, ruleStack.stackId))
-    .innerJoin(ruleLayerMap, eq(ruleLayerMap.ruleId, rule.id))
-    .innerJoin(layer, eq(layer.id, ruleLayerMap.layerId))
-    .where(eq(layer.isActive, true));
+    .innerJoin(stack, eq(stack.id, ruleStack.stackId));
 
+  const CONTENT_TYPES: Array<"patterns" | "deps"> = ["patterns", "deps"];
   const now = new Date();
   let generated = 0;
   const errors: string[] = [];
 
-  for (const pair of pairs) {
-    const shouldGenerate = await (async () => {
-      if (mode === "all") return true;
-      const [existing] = await db
-        .select({ id: summarizedGuardrail.id, expiresAt: summarizedGuardrail.expiresAt })
-        .from(summarizedGuardrail)
-        .where(and(eq(summarizedGuardrail.stackId, pair.stackId), eq(summarizedGuardrail.layerId, pair.layerId)))
-        .limit(1);
-      if (mode === "empty") return !existing;
-      // stale: no row, or expired
-      return !existing || (existing.expiresAt !== null && existing.expiresAt < now);
-    })();
+  for (const { stackSlug, stackId } of stackRows) {
+    for (const contentType of CONTENT_TYPES) {
+      const layerSlug = contentType === "deps" ? "dependency_supply" : "auth_session";
+      const shouldGenerate = await (async () => {
+        if (mode === "all") return true;
+        const [existing] = await db
+          .select({ id: summarizedGuardrail.id, expiresAt: summarizedGuardrail.expiresAt })
+          .from(summarizedGuardrail)
+          .where(and(eq(summarizedGuardrail.stackId, stackId), eq(summarizedGuardrail.contentType, contentType)))
+          .limit(1);
+        if (mode === "empty") return !existing;
+        return !existing || (existing.expiresAt !== null && existing.expiresAt < now);
+      })();
 
-    if (!shouldGenerate) continue;
+      if (!shouldGenerate) continue;
 
-    try {
-      await runSummarizerForLayer(pair.stackSlug, pair.layerSlug);
-      generated++;
-    } catch (e) {
-      errors.push(`${pair.stackSlug}/${pair.layerSlug}: ${e instanceof Error ? e.message : String(e)}`);
+      try {
+        await runSummarizerForLayer(stackSlug, layerSlug, contentType);
+        generated++;
+      } catch (e) {
+        errors.push(`${stackSlug}/${contentType}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      await new Promise((r) => setTimeout(r, 300));
     }
-
-    // Rate-limit protection
-    await new Promise((r) => setTimeout(r, 300));
   }
 
-  return { generated, skipped: pairs.length - generated - errors.length, errors };
+  const totalPossible = stackRows.length * CONTENT_TYPES.length;
+  return { generated, skipped: totalPossible - generated - errors.length, errors };
 }
 
 export async function registerV1Routes(app: FastifyInstance) {
@@ -662,33 +662,22 @@ export async function registerV1Routes(app: FastifyInstance) {
       if (!ideRow) {
         return sendProblem(reply, 400, "invalid-ide", "Unknown IDE", `No IDE with slug ${ideSlug}`);
       }
-      const rawLayers = (req.body.layers ?? []).filter((x) => typeof x === "string" && x.trim());
-      if (rawLayers.length > 0) {
-        const validSlugs = await getValidLayerSlugs();
-        const invalid = rawLayers.filter((l) => !validSlugs.has(l));
-        if (invalid.length > 0) {
-          return sendProblem(
-            reply,
-            400,
-            "invalid-layers",
-            "Invalid layers",
-            `Unknown layer slugs: ${invalid.join(", ")}`
-          );
-        }
-      }
+      const ruleTypeRaw = req.body.layers?.[0];
+      const ruleType: "all" | "patterns" | "deps" =
+        ruleTypeRaw === "patterns" || ruleTypeRaw === "deps" ? ruleTypeRaw : "all";
       const mode = req.body.mode ?? "rule";
       if (mode === "skill" && ideSlug.trim() === "claude-code") {
         return buildSkillMdExport({
           stackSlug: stackSlug.trim(),
           ideSlug: ideSlug.trim(),
-          layers: rawLayers,
+          ruleType,
           stackName: stackRow.name,
         });
       }
       return buildComposerMarkdownExport({
         stackSlug: stackSlug.trim(),
         ideSlug: ideSlug.trim(),
-        layers: rawLayers,
+        ruleType,
       });
     }
   );

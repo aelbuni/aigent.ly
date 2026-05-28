@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { ADMIN_BYPASS } from "@/lib/admin-bypass";
-import { db, layer, rule, ruleLayerMap, ruleStack, stack, summarizedGuardrail } from "@/lib/db";
+import { db, rule, ruleStack, stack, summarizedGuardrail } from "@/lib/db";
 import { runSummarizerForStack, type LayerSummaryResult } from "@/lib/summarizer/pipeline";
 import { and, eq } from "drizzle-orm";
 

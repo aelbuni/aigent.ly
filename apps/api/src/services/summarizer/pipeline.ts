@@ -175,11 +175,11 @@ export async function runSummarizerForLayer(
   }
 
   // Delete stale row if present, then insert fresh
+  const contentType: "patterns" | "deps" = ruleType === "deps" ? "deps" : "patterns";
   await db.delete(summarizedGuardrail).where(eq(summarizedGuardrail.cacheKey, cacheKey));
   await db.insert(summarizedGuardrail).values({
     stackId: stackRow.id,
-    layerId: layerRow.id,
-    ideSlug: "all",
+    contentType,
     content: summarizedContent,
     sourceRuleIds: rules.map((r) => r.id),
     provenance,
