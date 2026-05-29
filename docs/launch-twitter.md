@@ -4,142 +4,137 @@
 
 ### Tweet 1 — Hook
 
-The next 10 years will produce more software than the previous 50 combined.
+Vibe coding is a genuine shift in how software gets built.
 
-All of it written with AI.
+Cursor. Claude Code. Windsurf. Lovable.
 
-None of the AI models know about last week's CVEs.
+The volume of software the next decade produces will dwarf everything built before it.
 
-We built something about this. 🧵
-
----
-
-### Tweet 2 — The vibe coding wave
-
-Vibe coding is going exponential.
-
-Cursor. Claude Code. Windsurf. Lovable. Bolt.
-
-Millions of apps built by people who've never touched a security audit.
-
-Speed is the whole point. But speed without guardrails doesn't create bugs.
-
-It creates vulnerabilities. At scale.
+It also introduces a context problem the industry hasn't reckoned with yet. 🧵
 
 ---
 
-### Tweet 3 — The problem
+### Tweet 2 — The gap
 
-AI coding models were trained on yesterday's code.
+The gap isn't skill. It's information velocity.
 
-They don't know:
-→ The CVE published last Tuesday
-→ The Next.js middleware bypass from March
-→ Which auth pattern is actively exploited right now
+AI coding models are trained on a snapshot of the world. Security changes daily.
 
-They'll write it confidently. It'll pass review. It'll ship.
+The model in your IDE doesn't know what changed yesterday — not because it's inadequate.
+
+The threat landscape just moves faster than any training cycle can track.
+
+---
+
+### Tweet 3 — The real problem
+
+New CVEs are published continuously.
+CISA KEV grows every week.
+Attack surfaces shift as frameworks evolve.
+
+Your AI will write the vulnerable pattern confidently. It'll pass review. It'll ship.
+
+This is a structural challenge. Infrastructure is the right answer — not individual vigilance.
 
 ---
 
 ### Tweet 4 — Context engineering
 
-The real unlock isn't prompting better.
+The best teams building on AI today aren't just prompting better.
 
-It's context engineering — giving AI the rules, constraints, and threat data it needs BEFORE it writes a line of code.
+They're managing context — the structured information that shapes how the model behaves before it writes a line.
 
-That's where security lives now. Not in the PR review. In the context window.
+Threat rules, CVE patterns, security constraints: these belong in context, not post-commit review.
 
 ---
 
 ### Tweet 5 — What we built
 
-Introducing Aigent.ly.
+Meet Aigent.ly.
 
-Every day our pipeline pulls from 5 threat sources (NVD, GHSA, CISA KEV, OSV, npm Audit).
+Every day our pipeline ingests threats from 5 public sources:
+NVD · GHSA · CISA KEV · OSV · npm Audit
 
-Claude AI turns each CVE into ALWAYS/NEVER behavioral rules.
+Claude AI synthesizes each CVE into precise ALWAYS/NEVER directives.
 
-Rules synthesize into one governing file per stack.
-
-That file lives in your IDE. Always current.
-
----
-
-### Tweet 6 — The MCP layer
-
-We publish everything through an MCP server.
-
-One line in your IDE config. That's it.
-
-Now when you ask Cursor to build a login system, it already knows:
-
-"NEVER trust middleware-only auth — CVE-2025-29927 is actively exploited. ALWAYS enforce at the route handler."
-
-The vulnerability never gets written.
+One current, authoritative context file per stack. Updated every 24 hours.
 
 ---
 
-### Tweet 7 — No server required
+### Tweet 6 — What that looks like in practice
 
-You don't even need the MCP server.
+When your IDE sees the file, it knows:
 
-Generate your guardrail file → drop it in:
+"NEVER rely solely on middleware for authorization — CVE-2025-29927 demonstrates this is bypassable at the routing layer. ALWAYS enforce access control at the route handler."
 
-Claude Code → `CLAUDE.md` or `SKILL.md` (auto-loaded every session)
+The context travels with the code. The guardrail fires at generation time, not audit time.
+
+---
+
+### Tweet 7 — Two ways to use it
+
+Option 1: MCP server — one config line. Threat context injected automatically on every generation. Works with Cursor, Claude Code, Windsurf, Copilot, Cline.
+
+Option 2: No server needed.
+
+Claude Code → `CLAUDE.md` or `SKILL.md`
 Cursor → `.cursor/rules/aigently-nextjs-security.mdc`
 Windsurf → `.windsurfrules`
 Copilot → `.github/copilot-instructions.md`
 
-One file. Committed to your repo. Every AI on the team gets the rules. No setup.
+One file. In your repo. Every AI on the team picks it up.
 
 ---
 
-### Tweet 8 — This is just the start
+### Tweet 8 — Where the catalog is going
 
-Today: Next.js, Express, FastAPI, NestJS, Nuxt, React SPA
+Today: Next.js · Express · FastAPI · NestJS · Nuxt · React SPA
 
-Next: Django, Rails, Go, iOS, Android
+Coming next: Django · Rails · Go · iOS · Android — and beyond.
 
-After that: every major stack. Every language. Every ecosystem.
+5 threat sources today. RubyGems, PyPI, Go vulndb, Maven on the roadmap.
 
-5 threat sources today. RubyGems, PyPI, Go vulndb, Maven on the way.
+Every new source = more signal. Every new stack = more developers covered.
 
-The catalog grows with the community. Open source. No ceiling.
-
----
-
-### Tweet 9 — What ships now
-
-→ 100+ active CVEs across 6 stacks (growing)
-→ 5 public threat sources (expanding)
-→ MCP server: Cursor, Claude Code, Windsurf, Copilot, Cline
-→ Rule Composer: your guardrail file in 60 seconds
-→ Drop-in files for `CLAUDE.md`, `.mdc`, `.windsurfrules`
-→ 100% open source, Apache 2.0, no API key required
+Open infrastructure. No ceiling.
 
 ---
 
-### Tweet 9 — CTA
+### Tweet 9 — Contribution
 
-Try it: aigent.ly/composer
+Every application built on better security context is one less breach, one less exposed user.
 
-Star it: github.com/aelbuni/aigently-catalog
+If you work in security research, application engineering, or AI development — there is meaningful work to do here.
 
-Contribute a stack. Flag a bad rule. Build with us.
+Add a stack. Sharpen a CVE pattern. Propose a new threat source.
 
-Vibe coding is the future. Let's make it a safe one. 🔐
+The catalog improves fastest when the sharpest minds help shape it.
+
+---
+
+### Tweet 10 — CTA
+
+Apache 2.0. No API key. No account.
+
+Try the Rule Composer: aigent.ly/composer
+Star + contribute: github.com/aelbuni/aigently-catalog
+
+The next app that doesn't get compromised might be built by someone who has never thought about security once.
+
+That's exactly who this is for. 🔐
 
 ---
 
 ## Standalone tweet
 
-Your AI coding tool doesn't know about this week's CVEs.
+The gap in AI coding tools isn't skill.
 
-Aigent.ly does.
+It's information velocity.
 
-Free MCP server. Daily threat updates. One line to set up.
-Or just drop a `CLAUDE.md` / `.cursor/rules` file into your repo — no server needed.
+Your model doesn't know about this week's CVEs. Aigent.ly does — and it injects that context directly into your IDE before your code is written.
 
-→ aigent.ly
+Free. Open source. Apache 2.0. No API key.
 
-Tags: #VibeCoding #AICode #AppSec #OpenSource #MCP #DevSecOps #ContextEngineering
+→ aigent.ly/composer
+
+Tags: #ContextEngineering #VibeCoding #AppSec #OpenSource #AICode #MCP #DevSecOps #SecurityEngineering
