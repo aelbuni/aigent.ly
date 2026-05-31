@@ -45,6 +45,7 @@ export const metadata: Metadata = {
 
   // Favicon + icons (handled via <head> below; these populate the Next.js icon manifest)
   icons: {
+    shortcut: "/favicon.ico",
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
