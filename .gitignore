@@ -70,3 +70,5 @@ docs/ops/
 
 # --- Private launch / marketing docs (local only — never commit) ---
 private/
+docs/marketing/*.cast
+docs/marketing/*.gif

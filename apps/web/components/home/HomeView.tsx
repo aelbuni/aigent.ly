@@ -10,6 +10,7 @@ import { HomeMcpSection } from "@/components/home/HomeMcpSection";
 import { HomeMarqueeStrip } from "@/components/home/HomeMarqueeStrip";
 import { HomePersonaGrid } from "@/components/home/HomePersonaGrid";
 import { HomeStatBand } from "@/components/home/HomeStatBand";
+import { HomeTerminalDemo } from "@/components/home/HomeTerminalDemo";
 import type { HomeThreatRow } from "@/lib/catalog-from-db";
 
 type Stack = components["schemas"]["Stack"];
@@ -26,6 +27,7 @@ export function HomeView({
   return (
     <main className="flex flex-col overflow-x-clip bg-background font-body-base text-on-surface">
       <HomeHeroValue />
+      <HomeTerminalDemo />
       <HomeMarqueeStrip />
       <HomeLaunchStacks stacks={launchStacks} />
       <HomePersonaGrid />
