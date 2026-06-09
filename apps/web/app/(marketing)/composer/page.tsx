@@ -2,8 +2,8 @@ import { listIdesAction, listStacksAction } from "@/app/actions/api-data";
 import { ComposerPageClient } from "@/components/composer/ComposerPageClient";
 
 export const metadata = {
-  title: "Rule Composer — Aigent.ly",
-  description: "Generate a stack-matched security guardrail file for Cursor, Claude Code, Windsurf, or Copilot in under a minute. Free, no sign-up required.",
+  title: "Rule Composer",
+  description: "Generate a stack-matched security guardrail file for Claude Code, Cline, Cursor, GitHub Copilot, or Windsurf in under a minute. Free, no sign-up required.",
 };
 
 export default async function ComposerPage() {

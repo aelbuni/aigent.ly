@@ -10,7 +10,9 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
+  title: {
+    absolute: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
+  },
   description:
     "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates from NVD, GHSA, and CISA KEV — injected directly into Cursor, Claude Code, Windsurf, and Copilot.",
   openGraph: {

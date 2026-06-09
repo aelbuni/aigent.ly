@@ -11,7 +11,7 @@ import { ExploreClient } from "./ExploreClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Explore Guardrails | Aigent.ly",
+  title: "Explore Guardrails",
   description:
     "Browse and filter AI coding guardrails by rule type and stack. See coverage depth at a glance.",
 };
