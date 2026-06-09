@@ -4,8 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
+import { StackLlmOverview } from "@/components/stacks/StackLlmOverview";
 import {
   getStackDetailFromDb,
+  getLlmThreatBreakdownForStack,
   getStackOverviewFromDb,
 } from "@/lib/catalog-from-db";
 import { mergeStackOverviewFromApi, severityChipClass } from "@/lib/stack-overview-content";
@@ -55,6 +57,35 @@ export default async function StackOverviewPage({
     notFound();
   }
 
+  const rulesHref = `/rules?stack=${encodeURIComponent(detail.slug)}`;
+
+  // ── AI/LLM stack — dedicated layout ────────────────────────────────────────
+  if (detail.slug === "ai-llm") {
+    let llmBreakdown: Awaited<ReturnType<typeof getLlmThreatBreakdownForStack>> = [];
+    let llmThreatCount = 0;
+    try {
+      llmBreakdown = await getLlmThreatBreakdownForStack("ai-llm");
+      llmThreatCount = llmBreakdown.reduce((s, e) => s + e.count, 0);
+    } catch { /* DB unavailable */ }
+
+    return (
+      <div className="mx-auto max-w-4xl px-gutter py-8">
+        <nav className="mb-6 flex flex-wrap items-center gap-2 font-mono-label text-on-surface-variant">
+          <Link href="/stacks" className="hover:text-primary">Stacks</Link>
+          <MaterialSymbol name="chevron_right" className="!text-sm text-outline" />
+          <span className="font-bold text-purple-600 dark:text-purple-400">{detail.name}</span>
+        </nav>
+        <StackLlmOverview
+          stackName={detail.name}
+          threatCount={llmThreatCount}
+          llmBreakdown={llmBreakdown}
+          rulesHref={rulesHref}
+        />
+      </div>
+    );
+  }
+
+  // ── Standard stack layout ───────────────────────────────────────────────────
   // Always use DB for the overview — the API omits publishedAt on threat entries,
   // which we need to show dates on the risk cards.
   let apiOverview: StackOverviewResponse | null = null;
@@ -65,7 +96,6 @@ export default async function StackOverviewPage({
   }
 
   const overview = mergeStackOverviewFromApi(detail.slug, apiOverview);
-  const rulesHref = `/rules?stack=${encodeURIComponent(detail.slug)}`;
 
   const criticalPad = String(overview.criticalCount).padStart(2, "0");
   const highPad = String(overview.highCount).padStart(2, "0");
@@ -105,9 +135,8 @@ export default async function StackOverviewPage({
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
       <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[260px] shrink-0 flex-col border-r border-outline-variant bg-surface-container-low py-4 lg:flex">
-        <div className="mb-4 px-6 py-4">
-          <h2 className="text-base font-black text-on-surface">Aigent.ly</h2>
-          <p className="font-mono-label text-on-surface-variant">Security suite</p>
+        <div className="mb-2 px-6 pt-4">
+          <p className="font-mono-label text-[10px] uppercase tracking-widest text-on-surface-variant/60">Platform</p>
         </div>
         <nav className="flex flex-col gap-1 px-3">
           <Link href="/rules" className={sidebarLinkClass(false)}>
@@ -128,7 +157,7 @@ export default async function StackOverviewPage({
       <main className="dot-grid flex-1 px-gutter py-6 lg:p-8">
         <nav
           className="mb-6 flex flex-wrap gap-2 rounded-xl border border-outline-variant bg-surface-container-low p-3 lg:hidden"
-          aria-label="Security suite"
+          aria-label="Platform navigation"
         >
           <Link href="/rules" className={sidebarLinkClass(false)}>
             <MaterialSymbol name="security" className="!text-lg" />
