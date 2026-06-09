@@ -47,6 +47,7 @@ const STACK_SLUG_TO_HINT: Record<string, string> = {
   go: "go",
   ios: "ios",
   android: "android",
+  "ai-llm": "LLM application security — prompt injection, SSRF via tool use, deserialization of model artifacts",
 };
 
 export function ExploreClient({ allCards, stacks, stats }: Props) {
@@ -98,7 +99,7 @@ export function ExploreClient({ allCards, stacks, stats }: Props) {
         {[
           { label: "Total rules", value: stats.totalRules },
           { label: "Stacks covered", value: stats.stacksCovered },
-          { label: "Avg strength", value: stats.avgStrength },
+          { label: "Avg strength", value: `${stats.avgStrength} / 100` },
         ].map((s) => (
           <div
             key={s.label}
