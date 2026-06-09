@@ -1,20 +1,4 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-
 export function HomeTerminalDemo() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    if (document.getElementById("asciicast-hvKBCjRDdgQVEZQH")) return;
-    const script = document.createElement("script");
-    script.src = "https://asciinema.org/a/hvKBCjRDdgQVEZQH.js";
-    script.id = "asciicast-hvKBCjRDdgQVEZQH";
-    script.async = true;
-    containerRef.current.appendChild(script);
-  }, []);
-
   return (
     <section className="relative border-b border-inverse-on-surface/10 bg-inverse-surface px-gutter pb-16 pt-10">
       {/* Thin accent line at top */}
@@ -34,9 +18,16 @@ export function HomeTerminalDemo() {
           <div className="h-px flex-1 bg-inverse-on-surface/10" />
         </div>
 
-        {/* Player wrapper — subtle border + shadow so it reads as a contained UI */}
+        {/* Video player */}
         <div className="overflow-hidden rounded-2xl border border-inverse-on-surface/15 shadow-[0_8px_48px_rgba(0,0,0,0.5)]">
-          <div ref={containerRef} />
+          <video
+            src="/videos/aigently-mcp-demo.mp4"
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full"
+            aria-label="Aigent.ly MCP demo — real 2026 CVEs, before/after plan comparison"
+          />
         </div>
 
         <p className="mt-4 text-center font-mono-label text-[10px] tracking-widest text-inverse-on-surface/35">
