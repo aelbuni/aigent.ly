@@ -188,8 +188,8 @@ export function mergeStackOverviewFromApi(
           title: t.name,
           severity: mapApiSeverity(t.severity),
           description: t.isMitigatedByRules
-            ? "Flagged as mitigated by linked rules — verify in Composer export."
-            : "Tracked in Threats — align rules and stack coverage.",
+            ? "Rule coverage exists — verify in Composer export."
+            : "No rule coverage yet — consider contributing a rule.",
           borderAccent:
             t.severity === "critical" ? "border-l-error" : "border-l-tertiary-container",
           publishedAt: t.publishedAt ?? null,
