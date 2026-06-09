@@ -29,7 +29,13 @@ const STACK_ICONS: Record<string, { logo?: string; initials: string; bg: string;
   go:          { initials: "Go",  bg: "bg-cyan-700",      text: "text-white" },
   ios:         { initials: "iOS", bg: "bg-slate-700",     text: "text-white" },
   android:     { initials: "An",  bg: "bg-green-600",     text: "text-white" },
+  "ai-llm":    { initials: "AI",  bg: "bg-violet-700",    text: "text-white" },
 };
+
+function getStackInitials(slug: string, name: string): string {
+  if (slug === "ai-llm") return "AI";
+  return name.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
+}
 
 function StackIcon({ slug, selected }: { slug: string; selected: boolean }) {
   const cfg = STACK_ICONS[slug];
@@ -219,6 +225,9 @@ export function ComposerPageClient({
                     </button>
                   ))}
                 </div>
+                <p className="font-mono-label text-xs text-on-surface-variant/60">
+                  All IDEs receive the identical rules file — no IDE is preferred or required.
+                </p>
 
                 {/* Claude Code mode toggle */}
                 {ideSlug === "claude-code" && (
