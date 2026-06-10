@@ -184,7 +184,7 @@ export default async function StackOverviewPage({
           <div className="flex items-start gap-6">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest p-2">
               {detail.slug === "nextjs" ? (
-                <Image src="/next.svg" alt="" width={40} height={40} className="h-10 w-10 object-contain" />
+                <Image src="/next.svg" alt="" width={40} height={40} className="object-contain" />
               ) : detail.logoPath ? (
                 // eslint-disable-next-line @next/next/no-img-element -- remote logos from API
                 <img src={detail.logoPath} alt="" className="max-h-10 max-w-10 object-contain" />
