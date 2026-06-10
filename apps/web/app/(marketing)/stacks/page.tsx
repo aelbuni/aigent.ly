@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrainCircuit } from "lucide-react";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
 import { listStacksFromDb } from "@/lib/catalog-from-db";
@@ -9,6 +10,32 @@ import type { components } from "@aigently/api-client";
 export const dynamic = "force-dynamic";
 
 type Stack = components["schemas"]["Stack"];
+
+function StackIcon({ slug }: { slug: string }) {
+  if (slug === "ai-llm") {
+    return (
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-purple-400/40 bg-purple-500/10">
+        <BrainCircuit className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low">
+      <MaterialSymbol name="layers" className="!text-2xl text-primary" />
+    </div>
+  );
+}
+
+function FamilyBadge({ slug }: { slug: string }) {
+  if (slug === "ai-llm") {
+    return (
+      <span className="rounded border border-purple-400/40 bg-purple-500/10 px-2 py-0.5 font-mono-label text-[10px] text-purple-700 dark:text-purple-300">
+        OWASP LLM
+      </span>
+    );
+  }
+  return null;
+}
 
 export default async function StacksIndexPage() {
   const client = await getServerApiClient();
@@ -47,24 +74,38 @@ export default async function StacksIndexPage() {
       ) : (
         <div className="relative space-y-12">
           <section>
-            <h2 className="mb-4 font-mono-label text-primary">Launch stacks</h2>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="font-mono-label text-primary">Launch stacks</h2>
+              <span className="rounded-full border border-primary/30 bg-primary-fixed-dim/20 px-2.5 py-0.5 font-mono-label text-xs text-primary">
+                {launch.length}
+              </span>
+            </div>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {launch.map((s) => (
                 <li key={s.slug}>
                   <Link
                     href={`/stacks/${encodeURIComponent(s.slug)}`}
-                    className="flex h-full flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 transition-all hover:border-primary hover:bg-surface-container-low"
+                    className={`flex h-full flex-col justify-between rounded-xl border p-6 transition-all hover:bg-surface-container-low ${
+                      s.slug === "ai-llm"
+                        ? "border-purple-400/40 bg-purple-500/5 hover:border-purple-400/70"
+                        : "border-outline-variant bg-surface-container-lowest hover:border-primary"
+                    }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low">
-                        <MaterialSymbol name="layers" className="!text-2xl text-primary" />
-                      </div>
+                      <StackIcon slug={s.slug} />
                       <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-on-surface">{s.name}</h3>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-lg font-semibold text-on-surface">{s.name}</h3>
+                          <FamilyBadge slug={s.slug} />
+                        </div>
                         <p className="mt-1 font-mono-data text-on-surface-variant">{s.slug}</p>
                       </div>
                     </div>
-                    <div className="mt-6 flex items-center justify-between border-t border-outline-variant pt-4 font-mono-label text-primary">
+                    <div className={`mt-6 flex items-center justify-between border-t pt-4 font-mono-label ${
+                      s.slug === "ai-llm"
+                        ? "border-purple-400/30 text-purple-600 dark:text-purple-400"
+                        : "border-outline-variant text-primary"
+                    }`}>
                       Security posture
                       <MaterialSymbol name="arrow_forward" className="text-outline" />
                     </div>
@@ -77,7 +118,7 @@ export default async function StacksIndexPage() {
           {comingSoon.length > 0 ? (
             <section>
               <h2 className="mb-4 font-mono-label text-on-surface-variant">Coming soon</h2>
-              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {comingSoon.map((s) => (
                   <li key={s.slug}>
                     <div className="relative flex h-full flex-col justify-between rounded-xl border border-dashed border-outline-variant bg-surface-container-low/40 p-6 transition-all hover:border-primary/50">

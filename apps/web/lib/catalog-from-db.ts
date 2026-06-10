@@ -233,7 +233,7 @@ export async function listIdesFromDb(): Promise<Ide[]> {
       sortOrder: ide.sortOrder,
     })
     .from(ide)
-    .orderBy(asc(ide.sortOrder), asc(ide.id));
+    .orderBy(asc(ide.name));
 
   return rows.map((r) => ({
     id: r.id,
@@ -597,10 +597,12 @@ export async function listThreatsPagedFromDb(params: {
   severities?: string[];   // e.g. ["critical","high"] — empty = all
   stackSlug?: string;      // filter by specific stack slug
   q?: string;              // full-text search against name + cveId + publicId
+  family?: string;         // e.g. "owasp_web" | "owasp_llm" — empty = all
+  sort?: "risk" | "severity" | "newest"; // default "newest"
   page?: number;
   perPage?: number;
 }): Promise<ThreatFeedPage> {
-  const { severities = [], stackSlug = "", q = "", page = 1, perPage = 15 } = params;
+  const { severities = [], stackSlug = "", q = "", family = "", sort = "newest", page = 1, perPage = 15 } = params;
   const offset = (page - 1) * perPage;
 
   // Build parameterized WHERE clause for direct pg queries
@@ -624,7 +626,19 @@ export async function listThreatsPagedFromDb(params: {
     const idx = qp.length;
     whereParts.push(`(t.name ILIKE $${idx} OR t.cve_id ILIKE $${idx} OR t.public_id ILIKE $${idx})`);
   }
+  if (family.trim()) {
+    qp.push(family.trim());
+    whereParts.push(`t.family = $${qp.length}`);
+  }
   const whereClause = whereParts.join(" AND ");
+
+  // Outer ORDER BY depends on sort mode
+  const outerOrderBy =
+    sort === "risk"
+      ? `"isActivelyExploited" DESC, CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END ASC, published_at DESC NULLS LAST, "publicId" DESC`
+      : sort === "severity"
+        ? `CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END ASC, published_at DESC NULLS LAST, "publicId" DESC`
+        : `published_at DESC NULLS LAST, "publicId" DESC`;
 
   const countResult = await pool.query<{ total: number }>(
     `SELECT COUNT(DISTINCT t.public_id)::int AS total
@@ -650,7 +664,7 @@ export async function listThreatsPagedFromDb(params: {
        WHERE ${whereClause}
        ORDER BY t.public_id, t.published_at DESC NULLS LAST
      ) deduped
-     ORDER BY published_at DESC NULLS LAST, "publicId" DESC
+     ORDER BY ${outerOrderBy}
      LIMIT $${qp.length + 1} OFFSET $${qp.length + 2}`,
     [...qp, perPage, offset]
   );
@@ -842,10 +856,13 @@ export type HomeThreatRow = {
   name: string;
   severity: string | null;
   cveId: string | null;
+  source: string | null;
   sourceUrl: string | null;
   isActivelyExploited: boolean;
   publishedAt: Date | null;
   stackNames: string[];
+  epssScore?: number | null;
+  epssPercentile?: number | null;
 };
 
 /** Top N critical/high threats for the homepage live feed.
@@ -857,6 +874,7 @@ export async function listTopThreatsForHomepage(limit = 10): Promise<HomeThreatR
       name: threat.name,
       severity: threat.severity,
       cveId: threat.cveId,
+      source: threat.source,
       sourceUrl: threat.sourceUrl,
       isActivelyExploited: threat.isActivelyExploited,
       publishedAt: threat.publishedAt,
@@ -877,6 +895,7 @@ export async function listTopThreatsForHomepage(limit = 10): Promise<HomeThreatR
         name: r.name,
         severity: r.severity,
         cveId: r.cveId,
+        source: r.source,
         sourceUrl: r.sourceUrl,
         isActivelyExploited: r.isActivelyExploited,
         publishedAt: r.publishedAt,
@@ -988,4 +1007,52 @@ export async function listGuardrailsForComposerExport(
     result.push({ layerSlug, layerName, contentType: g.contentType, content: g.content, sourceRuleIds: g.sourceRuleIds, threats });
   }
   return result;
+}
+
+/** LLM Top 10 ref → count of threats for a given stack. Suitable for the StackLlmOverview breakdown. */
+export async function getLlmThreatBreakdownForStack(
+  stackSlug: string
+): Promise<{ ref: string; label: string; count: number }[]> {
+  const LLM_REFS = [
+    { ref: "LLM01", label: "Prompt Injection" },
+    { ref: "LLM02", label: "Insecure Output" },
+    { ref: "LLM03", label: "Training Data Poisoning" },
+    { ref: "LLM04", label: "Model DoS" },
+    { ref: "LLM05", label: "Supply Chain" },
+    { ref: "LLM06", label: "Sensitive Info Disclosure" },
+    { ref: "LLM07", label: "Insecure Plugin Design" },
+  ];
+
+  const row = await pool.query<{ total: number; owasp_refs: string[] | null }>(
+    `SELECT COUNT(DISTINCT t.public_id)::int AS total,
+            array_agg(DISTINCT unnested) FILTER (WHERE unnested LIKE 'LLM%') AS owasp_refs
+     FROM threat t
+     INNER JOIN threat_stack ts ON ts.threat_id = t.public_id
+     INNER JOIN stack s ON s.id = ts.stack_id,
+     LATERAL unnest(t.owasp_refs) AS unnested
+     WHERE s.slug = $1 AND t.family = 'owasp_llm'`,
+    [stackSlug]
+  );
+
+  const allRefs: string[] = row.rows[0]?.owasp_refs ?? [];
+
+  // Count threats per LLM ref via a second targeted query for accuracy
+  const countRows = await Promise.all(
+    LLM_REFS.map(({ ref }) =>
+      pool.query<{ cnt: number }>(
+        `SELECT COUNT(DISTINCT t.public_id)::int AS cnt
+         FROM threat t
+         INNER JOIN threat_stack ts ON ts.threat_id = t.public_id
+         INNER JOIN stack s ON s.id = ts.stack_id
+         WHERE s.slug = $1 AND t.owasp_refs @> ARRAY[$2]::text[]`,
+        [stackSlug, ref]
+      ).then((r) => ({ ref, cnt: r.rows[0]?.cnt ?? 0 }))
+    )
+  );
+
+  return LLM_REFS.map(({ ref, label }) => ({
+    ref,
+    label,
+    count: countRows.find((r) => r.ref === ref)?.cnt ?? 0,
+  }));
 }

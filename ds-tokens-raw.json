@@ -1,0 +1,17 @@
+{
+  "layer-auth": "239 68 68",
+  "layer-authz": "249 115 22",
+  "layer-input": "234 179 8",
+  "layer-secrets": "168 85 247",
+  "layer-deps": "59 130 246",
+  "layer-privacy": "236 72 153",
+  "layer-api": "20 184 166",
+  "layer-db": "16 185 129",
+  "layer-infra": "245 158 11",
+  "layer-cache": "99 102 241",
+  "layer-frontend": "14 165 233",
+  "layer-obs": "107 114 128",
+  "layer-resilience": "34 197 94",
+  "layer-ai": "139 92 246",
+  "layer-quality": "100 116 139"
+}

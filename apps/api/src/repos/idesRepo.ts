@@ -13,7 +13,7 @@ export async function listIdes() {
       sortOrder: ide.sortOrder,
     })
     .from(ide)
-    .orderBy(asc(ide.sortOrder), asc(ide.id));
+    .orderBy(asc(ide.name));
 }
 
 export async function getIdeBySlug(slug: string) {

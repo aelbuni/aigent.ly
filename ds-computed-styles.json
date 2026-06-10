@@ -1,0 +1,258 @@
+{
+  "HEADER.fixed.top-0": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgb(255, 255, 255)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "24px"
+  },
+  "A.flex.items-center": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "NAV.hidden.items-center": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "24px"
+  },
+  "A.text-sm.font-medium": {
+    "color": "lab(48.0876 -2.03595 -16.5814)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "A.hidden.font-sans": {
+    "color": "lab(48.0876 -2.03595 -16.5814)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "A.hidden.scale-100": {
+    "color": "rgb(255, 255, 255)",
+    "bg": "rgb(31, 16, 142)",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "BUTTON.flex.h-9": {
+    "color": "lab(35.5623 -1.74978 -15.4316)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "24px"
+  },
+  "DIV.flex.flex-1": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgb(252, 248, 255)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "24px"
+  },
+  "MAIN.flex.flex-col": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgb(252, 248, 255)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "DIV.relative.border-b": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "A.font-semibold.text-primary": {
+    "color": "rgb(31, 16, 142)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "BUTTON.absolute.right-3": {
+    "color": "rgb(70, 69, 83)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "20px"
+  },
+  "SECTION.hero-section.dot-grid": {
+    "color": "rgb(243, 239, 249)",
+    "bg": "rgb(48, 48, 55)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "DIV.relative.mb-7": {
+    "color": "rgb(243, 239, 249)",
+    "bg": "lab(94.9765 2.7144 -4.33813 / 0.1)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "SPAN.absolute.inline-flex": {
+    "color": "rgb(195, 192, 255)",
+    "bg": "rgb(195, 192, 255)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  },
+  "SPAN.relative.inline-flex": {
+    "color": "rgb(195, 192, 255)",
+    "bg": "rgb(195, 192, 255)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  },
+  "SPAN.font-mono-label.tracking-widest": {
+    "color": "rgb(195, 192, 255)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  },
+  "H1.font-h1.text-h1": {
+    "color": "rgb(243, 239, 249)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "56px",
+    "fontWeight": "700",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "64.4px"
+  },
+  "P.font-body-base.relative": {
+    "color": "lab(94.9764 2.7144 -4.33815 / 0.75)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "27.2px"
+  },
+  "A.font-body-base.group": {
+    "color": "rgb(243, 239, 249)",
+    "bg": "rgb(195, 192, 255)",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "SPAN.material-symbols-outlined.align-middle": {
+    "color": "rgb(243, 239, 249)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"Material Symbols Outlined\"",
+    "lineHeight": "20px"
+  },
+  "A.font-body-base.rounded-lg": {
+    "color": "lab(94.9765 2.7144 -4.33813 / 0.8)",
+    "bg": "lab(94.9765 2.7144 -4.33813 / 0.05)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "SECTION.relative.border-b": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgb(48, 48, 55)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "DIV.absolute.inset-x-0": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "DIV.h-px.flex-1": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "lab(94.9765 2.7144 -4.33813 / 0.1)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "SPAN.font-mono-label.inline-flex": {
+    "color": "rgb(195, 192, 255)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  },
+  "DIV.overflow-hidden.rounded-2xl": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "P.mt-4.text-center": {
+    "color": "lab(94.9764 2.7144 -4.33815 / 0.35)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "10px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "10px"
+  },
+  "DIV.overflow-x-clip.border-y": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "lab(1.76974 1.32743 -9.28855)",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Sans\"",
+    "lineHeight": "21px"
+  },
+  "SPAN.font-mono-label.text-error": {
+    "color": "rgb(186, 26, 26)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  },
+  "SPAN.font-mono-data.text-white": {
+    "color": "rgb(255, 255, 255)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "13px",
+    "fontWeight": "500",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "13px"
+  },
+  "SPAN.font-mono-label.text-primary-fixed-dim": {
+    "color": "rgb(27, 27, 34)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fontSize": "11px",
+    "fontWeight": "400",
+    "fontFamily": "\"DM Mono\"",
+    "lineHeight": "11px"
+  }
+}

@@ -7,6 +7,8 @@ export interface StackConfig {
   catalogStatus: CatalogStatus;
   sortOrder: number;
   ecosystem: string; // "npm" | "pypi" | "rubygems" | "go" | "swift" | "maven"
+  /** owasp_web (default) or owasp_llm for AI/LLM stacks */
+  family?: "owasp_web" | "owasp_llm";
 
   // ── OSV.dev Phase 2 ──────────────────────────────────────────────────
   osvEcosystem: string; // sent to OSV API: "npm" | "PyPI" | "Go" | "RubyGems" | "Maven" | "SwiftURL"
@@ -179,7 +181,7 @@ export const STACK_REGISTRY: StackConfig[] = [
   {
     slug: "django",
     name: "Django",
-    catalogStatus: "coming_soon",
+    catalogStatus: "launch",
     sortOrder: 7,
     ecosystem: "pypi",
     osvEcosystem: "PyPI",
@@ -194,7 +196,7 @@ export const STACK_REGISTRY: StackConfig[] = [
   {
     slug: "rails",
     name: "Ruby on Rails",
-    catalogStatus: "coming_soon",
+    catalogStatus: "launch",
     sortOrder: 8,
     ecosystem: "rubygems",
     osvEcosystem: "RubyGems",
@@ -209,7 +211,7 @@ export const STACK_REGISTRY: StackConfig[] = [
   {
     slug: "go",
     name: "Go",
-    catalogStatus: "coming_soon",
+    catalogStatus: "launch",
     sortOrder: 9,
     ecosystem: "go",
     osvEcosystem: "Go",
@@ -230,7 +232,7 @@ export const STACK_REGISTRY: StackConfig[] = [
   {
     slug: "ios",
     name: "iOS / Swift",
-    catalogStatus: "coming_soon",
+    catalogStatus: "launch",
     sortOrder: 10,
     ecosystem: "swift",
     osvEcosystem: "SwiftURL",
@@ -246,7 +248,7 @@ export const STACK_REGISTRY: StackConfig[] = [
   {
     slug: "android",
     name: "Android / Kotlin",
-    catalogStatus: "coming_soon",
+    catalogStatus: "launch",
     sortOrder: 11,
     ecosystem: "maven",
     osvEcosystem: "Maven",
@@ -259,6 +261,42 @@ export const STACK_REGISTRY: StackConfig[] = [
     ghsaEcosystem: "MAVEN",
     cwePriority: ["CWE-312", "CWE-295", "CWE-532", "CWE-798", "CWE-200"],
     minCvss: 6.5,
+  },
+  {
+    slug: "ai-llm",
+    name: "AI / LLM Apps",
+    catalogStatus: "launch",
+    sortOrder: 12,
+    ecosystem: "pypi",
+    family: "owasp_llm",
+    osvEcosystem: "PyPI",
+    osvPackages: [
+      "langchain",
+      "langchain-community",
+      "langchain-core",
+      "llama-index",
+      "llama-index-core",
+      "llama-cpp-python",
+      "transformers",
+      "huggingface_hub",
+      "vllm",
+      "gradio",
+      "ollama",
+      "anthropic",
+      "openai",
+      "pydantic-ai",
+      "crewai",
+      "autogen-agentchat",
+      "dspy-ai",
+    ],
+    nvdKeywords: ["langchain", "llama-index", "hugging face", "transformers", "vllm", "gradio"],
+    ghsaEcosystem: "PIP",
+    cwePriority: [
+      "CWE-20",  "CWE-77",  "CWE-78",  "CWE-94",
+      "CWE-200", "CWE-284", "CWE-285", "CWE-400",
+      "CWE-502", "CWE-918", "CWE-1321",
+    ],
+    minCvss: 7.0,
   },
 ];
 

@@ -504,11 +504,11 @@ async function seedUpsert(master: MasterFile, threatStacks: ThreatStackFile, shi
   await db
     .insert(ide)
     .values([
-      { slug: "cursor", name: "Cursor", sortOrder: 1 },
-      { slug: "claude-code", name: "Claude Code", sortOrder: 2 },
-      { slug: "windsurf", name: "Windsurf", sortOrder: 3 },
-      { slug: "cline", name: "Cline", sortOrder: 4 },
-      { slug: "copilot", name: "GitHub Copilot", sortOrder: 5 },
+      { slug: "claude-code", name: "Claude Code", sortOrder: 1 },
+      { slug: "cline", name: "Cline", sortOrder: 2 },
+      { slug: "cursor", name: "Cursor", sortOrder: 3 },
+      { slug: "copilot", name: "GitHub Copilot", sortOrder: 4 },
+      { slug: "windsurf", name: "Windsurf", sortOrder: 5 },
     ])
     .onConflictDoNothing({ target: ide.slug });
 
@@ -634,11 +634,11 @@ async function seedFull(master: MasterFile, threatStacks: ThreatStackFile, shipp
   await db
     .insert(ide)
     .values([
-      { slug: "cursor", name: "Cursor", sortOrder: 1 },
-      { slug: "claude-code", name: "Claude Code", sortOrder: 2 },
-      { slug: "windsurf", name: "Windsurf", sortOrder: 3 },
-      { slug: "cline", name: "Cline", sortOrder: 4 },
-      { slug: "copilot", name: "GitHub Copilot", sortOrder: 5 },
+      { slug: "claude-code", name: "Claude Code", sortOrder: 1 },
+      { slug: "cline", name: "Cline", sortOrder: 2 },
+      { slug: "cursor", name: "Cursor", sortOrder: 3 },
+      { slug: "copilot", name: "GitHub Copilot", sortOrder: 4 },
+      { slug: "windsurf", name: "Windsurf", sortOrder: 5 },
     ])
     .onConflictDoNothing({ target: ide.slug });
 

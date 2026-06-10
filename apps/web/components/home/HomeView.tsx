@@ -1,5 +1,6 @@
 import type { components } from "@aigently/api-client";
 
+import { HomeLaunchBanner } from "@/components/home/HomeLaunchBanner";
 import { HomeComposerTeaser } from "@/components/home/HomeComposerTeaser";
 import { HomeDifferentiators } from "@/components/home/HomeDifferentiators";
 import { HomeHeroValue } from "@/components/home/HomeHeroValue";
@@ -26,6 +27,7 @@ export function HomeView({
 }) {
   return (
     <main className="flex flex-col overflow-x-clip bg-background font-body-base text-on-surface">
+      <HomeLaunchBanner />
       <HomeHeroValue />
       <HomeTerminalDemo />
       <HomeMarqueeStrip />

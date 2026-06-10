@@ -51,40 +51,48 @@
     "slug": "django",
     "name": "Django",
     "ecosystem": "pypi",
-    "catalogStatus": "launch",
-    "securityGrade": "",
+    "catalogStatus": "coming_soon",
+    "securityGrade": null,
     "sortOrder": 7
   },
   {
     "slug": "rails",
     "name": "Ruby on Rails",
     "ecosystem": "rubygems",
-    "catalogStatus": "launch",
-    "securityGrade": "",
+    "catalogStatus": "coming_soon",
+    "securityGrade": null,
     "sortOrder": 8
   },
   {
     "slug": "go",
     "name": "Go",
     "ecosystem": "go",
-    "catalogStatus": "launch",
-    "securityGrade": "",
+    "catalogStatus": "coming_soon",
+    "securityGrade": null,
     "sortOrder": 9
   },
   {
     "slug": "ios",
     "name": "iOS / Swift",
     "ecosystem": "swift",
-    "catalogStatus": "launch",
-    "securityGrade": "",
+    "catalogStatus": "coming_soon",
+    "securityGrade": null,
     "sortOrder": 10
   },
   {
     "slug": "android",
     "name": "Android / Kotlin",
     "ecosystem": "maven",
-    "catalogStatus": "launch",
-    "securityGrade": "",
+    "catalogStatus": "coming_soon",
+    "securityGrade": null,
     "sortOrder": 11
+  },
+  {
+    "slug": "ai-llm",
+    "name": "AI / LLM Apps",
+    "ecosystem": "pypi",
+    "catalogStatus": "launch",
+    "securityGrade": null,
+    "sortOrder": 12
   }
 ]

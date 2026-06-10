@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s | Aigent.ly",
   },
   description:
-    "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates from NVD, GHSA, and CISA KEV — injected directly into Cursor, Claude Code, Windsurf, and Copilot.",
+    "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates from NVD, GHSA, CISA KEV, OSV, npm Audit, and EPSS — injected directly into Cursor, Claude Code, Windsurf, and Copilot.",
   applicationName: "Aigent.ly",
   keywords: [
     "AI coding security",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     siteName: "Aigent.ly",
     title: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
     description:
-      "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates injected directly into Cursor, Claude Code, Windsurf, and Copilot.",
+      "Open-source vulnerability prevention layer for AI-generated code. 12 stacks, 6 CVE sources (incl. EPSS), injected into Cursor, Claude Code, Windsurf, and Copilot.",
     images: [
       {
         url: `${BASE_URL}/og-image.png`,
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     creator: "@aigently",
     title: "Aigent.ly — Vulnerability Prevention for AI-Generated Code",
     description:
-      "Open-source vulnerability prevention layer for AI-generated code. Daily CVE updates injected directly into Cursor, Claude Code, and Copilot.",
+      "Open-source vulnerability prevention layer for AI-generated code. 12 stacks, 6 CVE sources (incl. EPSS), injected into Cursor, Claude Code, and Copilot.",
     images: [
       {
         url: `${BASE_URL}/og-image.png`,

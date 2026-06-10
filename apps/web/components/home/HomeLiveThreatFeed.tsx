@@ -1,4 +1,7 @@
 import Link from "next/link";
+
+import { EpssChip } from "@/components/ui/epss-chip";
+import { SourceChip } from "@/components/ui/source-chip";
 import type { HomeThreatRow } from "@/lib/catalog-from-db";
 
 function SeverityBadge({ severity }: { severity: string | null }) {
@@ -49,9 +52,11 @@ export function HomeLiveThreatFeed({ threats }: { threats: HomeThreatRow[] }) {
             const href = t.sourceUrl ?? (t.cveId ? `https://nvd.nist.gov/vuln/detail/${t.cveId}` : null);
             return (
               <div key={t.publicId} className="flex items-start gap-4 px-5 py-4">
-                {/* Severity + exploited indicator */}
+                {/* Severity + EPSS + source + exploited indicator */}
                 <div className="flex shrink-0 flex-col items-start gap-1.5 pt-0.5">
                   <SeverityBadge severity={t.severity} />
+                  <EpssChip score={t.epssScore} percentile={t.epssPercentile} />
+                  <SourceChip source={t.source} />
                   {t.isActivelyExploited && (
                     <span className="rounded border border-error/40 bg-error/8 px-1.5 py-0.5 font-mono-label text-[9px] text-error uppercase">
                       exploited

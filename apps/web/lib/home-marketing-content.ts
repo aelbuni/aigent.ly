@@ -4,7 +4,7 @@ export const HERO = {
   badge: "Free & Open Source",
   headline: "Your AI coding tool writes fast. It also writes vulnerabilities.",
   subcopy:
-    "Aigent.ly is a free, open-source MCP server that injects live CVE-backed guardrails into Cursor, Claude Code, Windsurf, and Copilot — so your AI enforces this week's security rules, not last year's training data.",
+    "Aigent.ly is a free, open-source MCP server that injects live CVE-backed guardrails into Claude Code, Cline, Cursor, GitHub Copilot, and Windsurf — so your AI enforces this week's security rules, not last year's training data.",
   primaryCta: { label: "Try the Composer", href: "/composer" as const },
   secondaryCta: { label: "Browse the threat feed", href: "/threats" as const },
 } as const;
@@ -16,10 +16,10 @@ export const TESTIMONIAL = {
 } as const;
 
 export const MARQUEE_ITEMS = [
-  { tone: "text-error",             label: "LIVE:",  text: "CVE FEED UPDATED DAILY FROM NVD · GHSA · CISA KEV · OSV",  href: "/threats" },
-  { tone: "text-error",             label: "ALERT:", text: "PROMPT INJECTION & TOOL ABUSE IN AI AGENTS",                href: "/threats" },
+  { tone: "text-error",             label: "LIVE:",  text: "CVE FEED UPDATED DAILY FROM NVD · GHSA · CISA KEV · OSV · EPSS",  href: "/threats" },
+  { tone: "text-error",             label: "ALERT:", text: "PROMPT INJECTION & TOOL ABUSE IN AI AGENTS",                        href: "/threats" },
   { tone: "text-primary-fixed-dim", label: "FREE:",  text: "OPEN-SOURCE MCP SERVER — WORKS IN CURSOR · CLAUDE CODE · WINDSURF", href: "/composer" },
-  { tone: "text-primary-fixed-dim", label: "LIVE:",  text: "100+ CVE-LINKED THREATS TRACKED ACROSS 6 STACKS",          href: "/threats" },
+  { tone: "text-primary-fixed-dim", label: "LIVE:",  text: "100+ CVE-LINKED THREATS TRACKED ACROSS 12 STACKS",                 href: "/threats" },
 ] as const;
 
 export const THREE_USPS = [
@@ -32,7 +32,7 @@ export const THREE_USPS = [
   {
     icon: "bolt" as const,
     title: "Live CVE threat feed",
-    body: "LLM training is frozen in time. Aigent.ly pulls daily from NVD, GHSA, CISA KEV, and OSV — so your guardrails reflect what's actively exploited right now.",
+    body: "LLM training is frozen in time. Aigent.ly pulls daily from NVD, GHSA, CISA KEV, OSV, npm Audit, and EPSS — so your guardrails reflect what's actively exploited right now.",
     href: "/threats" as const,
   },
   {
@@ -57,7 +57,7 @@ export const USER_STORIES = [
   {
     tag: "The senior engineer",
     title: "Standardizing AI-assisted PRs.",
-    body: "Onboarding a team onto Cursor or Copilot. Needs one ruleset baseline so AI-generated diffs meet the same bar as hand-written code.",
+    body: "Onboarding a team onto an AI IDE. Needs one ruleset baseline so AI-generated diffs meet the same bar as hand-written code.",
   },
   {
     tag: "The technical PM",
@@ -69,7 +69,7 @@ export const USER_STORIES = [
 export const JTBD_STEPS = [
   {
     title: "Add the MCP server to your IDE",
-    body: "One npx line in your IDE's MCP config. Cursor, Claude Code, Windsurf, Copilot, and Cline all supported. No API key required.",
+    body: "One npx line in your IDE's MCP config. Claude Code, Cline, Cursor, GitHub Copilot, and Windsurf all supported. No API key required.",
     href: "/composer" as const,
   },
   {
@@ -79,7 +79,7 @@ export const JTBD_STEPS = [
   },
   {
     title: "Browse the threat feed",
-    body: "100+ CVEs tracked across 6 launch stacks, updated daily from NVD, GHSA, CISA KEV, and OSV. Each CVE links to its advisory.",
+    body: "100+ CVEs tracked across 12 launch stacks, updated daily from NVD, GHSA, CISA KEV, OSV, npm Audit, and EPSS. Each CVE links to its advisory.",
     href: "/threats" as const,
   },
   {
@@ -93,17 +93,17 @@ export const STAT_TILES = [
   {
     value: "—",
     label: "Verified threats tracked",
-    footnote: "CVE-linked rows across 6 launch stacks, updated daily.",
+    footnote: "CVE-linked rows across 12 launch stacks, updated daily.",
+  },
+  {
+    value: "12",
+    label: "Launch stacks covered",
+    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA, Django, Rails, Go, iOS, Android, and AI/LLM Apps.",
   },
   {
     value: "6",
-    label: "Launch stacks covered",
-    footnote: "Next.js, Express, FastAPI, NestJS, Nuxt, React SPA — fully guardrailed.",
-  },
-  {
-    value: "5",
     label: "Threat intelligence sources",
-    footnote: "NVD, GHSA, CISA KEV, OSV, and npm Audit — all public, no login required.",
+    footnote: "NVD, GHSA, CISA KEV, OSV, npm Audit, and EPSS — all public, no login required.",
   },
   {
     value: "$0",
@@ -116,7 +116,7 @@ export const MCP_SECTION = {
   badge: "Free MCP Server",
   headline: "Inject live security rules into any AI IDE.",
   subcopy:
-    "One config line. No API key. No database. The MCP server reads the open-source catalog — updated daily from four public CVE sources — and delivers the right guardrails automatically as you code.",
+    "One config line. No API key. No database. The MCP server reads the open-source catalog — updated daily from six public CVE sources — and delivers the right guardrails automatically as you code.",
   snippet: `{
   "mcpServers": {
     "aigently": {
@@ -126,7 +126,7 @@ export const MCP_SECTION = {
     }
   }
 }`,
-  ides: ["Cursor", "Claude Code", "Windsurf", "Copilot", "Cline"],
+  ides: ["Claude Code", "Cline", "Cursor", "GitHub Copilot", "Windsurf"],
   cta: { label: "Get your guardrail file", href: "/composer" as const },
   githubHref: "https://github.com/aelbuni/aigently-catalog" as const,
   features: [

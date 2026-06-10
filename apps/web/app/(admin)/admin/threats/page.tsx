@@ -25,7 +25,7 @@ import { AlertTriangle, Plus } from "lucide-react";
 export default async function ThreatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; severity?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; severity?: string; family?: string }>;
 }) {
   const params = await searchParams;
   const page = Number(params.page ?? 1);
@@ -34,6 +34,7 @@ export default async function ThreatsPage({
     perPage: 25,
     search: params.search,
     severity: params.severity,
+    family: params.family,
   });
 
   return (
@@ -66,6 +67,17 @@ export default async function ThreatsPage({
           <option value="low">Low</option>
           <option value="info">Info</option>
         </select>
+        <select
+          name="family"
+          defaultValue={params.family ?? ""}
+          className="border-stroke bg-white text-dark focus:border-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white h-11 rounded-sm border px-3 text-sm outline-none transition-colors"
+        >
+          <option value="">All families</option>
+          <option value="owasp_web">OWASP Web</option>
+          <option value="owasp_llm">OWASP LLM</option>
+          <option value="mitre_atlas">MITRE ATLAS</option>
+          <option value="vibe_coding">Vibe Coding</option>
+        </select>
         <AdminSearchSubmit label="Filter" />
       </AdminSearchForm>
 
@@ -76,13 +88,14 @@ export default async function ThreatsPage({
             <AdminTableHead>Source</AdminTableHead>
             <AdminTableHead>Severity</AdminTableHead>
             <AdminTableHead>Amplified</AdminTableHead>
+            <AdminTableHead>EPSS</AdminTableHead>
             <AdminTableHead>Layers</AdminTableHead>
             <AdminTableHead align="right">Actions</AdminTableHead>
           </AdminTableHeaderRow>
         </AdminTableHeader>
         <AdminTableBody>
           {rows.length === 0 ? (
-            <AdminEmptyState colSpan={6} message="No threats found." />
+            <AdminEmptyState colSpan={7} message="No threats found." />
           ) : (
             rows.map((t) => (
               <AdminTableRow key={t.publicId}>
@@ -113,6 +126,19 @@ export default async function ThreatsPage({
                   <AdminStatusPill status={t.isAmplified ? "active" : "inactive"} />
                 </AdminTableCell>
                 <AdminTableCell>
+                  {t.epssScore != null ? (
+                    <span className={`text-sm font-semibold ${
+                      t.epssScore >= 0.7 ? "text-[#D34053]"
+                      : t.epssScore >= 0.4 ? "text-[#FFA70B]"
+                      : "text-dark-6 dark:text-dark-4"
+                    }`}>
+                      {Math.round(t.epssScore * 100)}%
+                    </span>
+                  ) : (
+                    <span className="text-dark-6 text-sm">—</span>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell>
                   <span className={`text-sm font-medium ${Number(t.layerCount) === 0 ? "text-[#FFA70B]" : "text-dark dark:text-white"}`}>
                     {t.layerCount}
                     {Number(t.layerCount) === 0 && <span className="ml-1">⚠</span>}
@@ -131,7 +157,7 @@ export default async function ThreatsPage({
         page={page}
         perPage={25}
         total={total}
-        searchParams={{ search: params.search, severity: params.severity }}
+        searchParams={{ search: params.search, severity: params.severity, family: params.family }}
       />
     </div>
   );

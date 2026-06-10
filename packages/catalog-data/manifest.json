@@ -1,9 +1,9 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-25T16:33:44.384Z",
+  "generatedAt": "2026-06-09T22:41:05.039Z",
   "counts": {
-    "threats": 519,
-    "rules": 12,
-    "stacks": 11
+    "threats": 391,
+    "rules": 24,
+    "stacks": 12
   }
 }

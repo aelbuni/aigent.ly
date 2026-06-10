@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { MaterialSymbol } from "@/components/MaterialSymbol";
+import { EpssChip } from "@/components/ui/epss-chip";
+import { SourceChip } from "@/components/ui/source-chip";
 import {
   countDistinctThreatsOnLaunchStacks,
   getLastCatalogSyncFinishedAt,
@@ -35,6 +37,10 @@ function firstString(v: string | string[] | undefined): string {
   return typeof v === "string" ? v : v[0] ?? "";
 }
 
+type SortMode = "risk" | "severity" | "newest";
+const VALID_FAMILIES = ["owasp_web", "owasp_llm", "mitre_atlas", "vibe_coding"] as const;
+type FamilyFilter = "" | (typeof VALID_FAMILIES)[number];
+
 function parseThreatSearch(sp: Record<string, string | string[] | undefined> | undefined) {
   const raw = firstString(sp?.severity);
   let mode: SeverityMode = "all";
@@ -46,9 +52,13 @@ function parseThreatSearch(sp: Record<string, string | string[] | undefined> | u
   }
   const q = firstString(sp?.q).trim();
   const stackSlug = firstString(sp?.stack).trim();
+  const familyRaw = firstString(sp?.family).trim() as FamilyFilter;
+  const family: FamilyFilter = (VALID_FAMILIES as readonly string[]).includes(familyRaw) ? familyRaw : "";
+  const sortRaw = firstString(sp?.sort).trim();
+  const sort: SortMode = sortRaw === "risk" || sortRaw === "severity" ? sortRaw : "newest";
   const pageRaw = parseInt(firstString(sp?.page), 10);
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
-  return { mode, single, q, stackSlug, page };
+  return { mode, single, q, stackSlug, family, sort, page };
 }
 
 function buildThreatsHref(patch: {
@@ -56,6 +66,8 @@ function buildThreatsHref(patch: {
   single?: string;
   stackSlug?: string;
   q?: string;
+  family?: FamilyFilter;
+  sort?: SortMode;
   page?: number;
 }) {
   const p = new URLSearchParams();
@@ -64,6 +76,8 @@ function buildThreatsHref(patch: {
   else if (patch.single) p.set("severity", patch.single);
   if (patch.stackSlug) p.set("stack", patch.stackSlug);
   if (patch.q) p.set("q", patch.q);
+  if (patch.family) p.set("family", patch.family);
+  if (patch.sort && patch.sort !== "newest") p.set("sort", patch.sort);
   if (patch.page !== undefined && patch.page > 1) p.set("page", String(patch.page));
   const s = p.toString();
   return s ? `/threats?${s}` : "/threats";
@@ -96,7 +110,7 @@ export default async function ThreatsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = (await searchParams) ?? {};
-  const { mode, single, q, stackSlug, page: requestedPage } = parseThreatSearch(sp);
+  const { mode, single, q, stackSlug, family, sort, page: requestedPage } = parseThreatSearch(sp);
 
   const severities =
     mode === "critical_high" ? ["critical", "high"] :
@@ -110,7 +124,7 @@ export default async function ThreatsPage({
   let protectByThreat = new Map<string, number>();
   try {
     [dbPage, matrixRows, verifiedCount, lastSync, protectByThreat] = await Promise.all([
-      listThreatsPagedFromDb({ severities, stackSlug, q, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
+      listThreatsPagedFromDb({ severities, stackSlug, q, family, sort, page: requestedPage, perPage: THREAT_FEED_PAGE_SIZE }),
       getLaunchStackThreatSeverityCounts(),
       countDistinctThreatsOnLaunchStacks(),
       getLastCatalogSyncFinishedAt(),
@@ -153,7 +167,8 @@ export default async function ThreatsPage({
             </span>
           </div>
           <p className="mt-2 text-sm text-on-surface-variant">
-            <span className="font-semibold text-on-surface">{verifiedCount}</span> threats tracked across 6 launch stacks — sourced from NVD, GHSA, CISA KEV, and OSV.
+            <span className="font-semibold text-on-surface">{verifiedCount}</span> threats tracked across{" "}
+            <span className="font-semibold text-on-surface">{matrixRows.length || 12}</span> launch stacks — sourced from NVD, GHSA, CISA KEV, OSV, npm Audit, and EPSS.
             {lastSync ? (
               <> Updated <time dateTime={lastSync}>{new Date(lastSync).toLocaleDateString()}</time>.</>
             ) : null}
@@ -177,9 +192,9 @@ export default async function ThreatsPage({
                 </Link>
               )}
             </div>
-            {/* 2×3 clickable cards */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {matrixRows.slice(0, 6).map((row) => {
+            {/* clickable cards — up to 12 stacks */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {matrixRows.slice(0, 12).map((row) => {
                 const isActive = stackSlug === row.slug;
                 const totalHigh = row.critical + row.high;
                 const critPct = totalHigh > 0 ? Math.round((row.critical / totalHigh) * 100) : 0;
@@ -288,11 +303,46 @@ export default async function ThreatsPage({
             ))}
           </div>
 
+          {/* Family filter + sort row */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by family">
+              <Link href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family: "", sort })} className={filterButtonClass(!family)}>
+                All families
+              </Link>
+              <Link href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family: "owasp_web", sort })} className={`${filterButtonClass(family === "owasp_web")} gap-1.5`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Web (OWASP)
+              </Link>
+              <Link href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family: "owasp_llm", sort })} className={`${filterButtonClass(family === "owasp_llm")} gap-1.5`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                AI/LLM (OWASP LLM)
+              </Link>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono-label text-[10px] uppercase tracking-[0.12em] text-on-surface-variant/60">Sort:</span>
+              {(["newest", "severity", "risk"] as const).map((s) => (
+                <Link
+                  key={s}
+                  href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family, sort: s })}
+                  className={`rounded-full border px-2.5 py-1 font-mono-label text-xs font-semibold transition-colors capitalize ${
+                    sort === s
+                      ? "border-on-surface/40 bg-surface-container text-on-surface"
+                      : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline hover:bg-surface-container"
+                  }`}
+                >
+                  {s === "risk" ? "Exploit Risk" : s === "severity" ? "Severity" : "Newest"}
+                </Link>
+              ))}
+            </div>
+          </div>
+
           {/* Search row */}
           <form action="/threats" method="get" className="flex gap-2">
             {mode === "critical_high" && <input type="hidden" name="severity" value="critical_high" />}
             {mode === "single" && single && <input type="hidden" name="severity" value={single} />}
             {stackSlug && <input type="hidden" name="stack" value={stackSlug} />}
+            {family && <input type="hidden" name="family" value={family} />}
+            {sort !== "newest" && <input type="hidden" name="sort" value={sort} />}
             <div className="relative flex-1">
               <MaterialSymbol name="search" className="pointer-events-none absolute left-3 top-1/2 !text-lg -translate-y-1/2 text-on-surface-variant" />
               <input
@@ -362,6 +412,8 @@ export default async function ThreatsPage({
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <SeverityPill sev={t.severity} />
+                      <EpssChip score={t.epssScore} percentile={t.epssPercentile} />
+                      <SourceChip source={t.source} />
                       {t.referenceUrl ? (
                         <a
                           href={t.referenceUrl}
@@ -396,11 +448,24 @@ export default async function ThreatsPage({
                   {/* Tags + CTA */}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {t.tags.slice(0, 4).map((tag) => (
-                        <span key={tag} className="rounded border border-outline-variant bg-surface-container px-2 py-0.5 font-mono-label text-xs text-on-surface-variant">
-                          {tag}
-                        </span>
-                      ))}
+                      {t.tags.slice(0, 4).map((tag) => {
+                        const isLlm = t.family === "owasp_llm" && tag !== "OWASP LLM";
+                        const isLlmFamily = tag === "OWASP LLM";
+                        return (
+                          <span
+                            key={tag}
+                            className={`rounded border px-2 py-0.5 font-mono-label text-xs ${
+                              isLlmFamily
+                                ? "border-purple-400/40 bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                                : isLlm
+                                  ? "border-purple-400/30 bg-purple-500/5 text-purple-600 dark:text-purple-400"
+                                  : "border-outline-variant bg-surface-container text-on-surface-variant"
+                            }`}
+                          >
+                            {tag}
+                          </span>
+                        );
+                      })}
                     </div>
                     <Link href="/composer" className="shrink-0 font-mono-label text-xs text-primary hover:underline">
                       Get guardrail →
@@ -422,7 +487,7 @@ export default async function ThreatsPage({
               </span>
             ) : (
               <Link
-                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: page - 1 })}
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family, sort, page: page - 1 })}
                 className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
                 prefetch={false}
               >
@@ -438,7 +503,7 @@ export default async function ThreatsPage({
                 return (
                   <Link
                     key={p2}
-                    href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: p2 === 1 ? undefined : p2 })}
+                    href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family, sort, page: p2 === 1 ? undefined : p2 })}
                     className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${
                       p2 === page
                         ? "border-primary bg-primary text-white"
@@ -462,7 +527,7 @@ export default async function ThreatsPage({
               </span>
             ) : (
               <Link
-                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, page: page + 1 })}
+                href={buildThreatsHref({ mode, single: mode === "single" ? single : undefined, stackSlug, q, family, sort, page: page + 1 })}
                 className="flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2 text-sm text-on-surface hover:border-primary hover:bg-surface-container"
                 prefetch={false}
               >

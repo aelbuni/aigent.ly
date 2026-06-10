@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrainCircuit } from "lucide-react";
 
 import type { components } from "@aigently/api-client";
 
@@ -16,12 +17,13 @@ export function HomeLaunchStacks({ stacks }: { stacks: Stack[] }) {
           <span className="font-mono-label text-primary">MVP</span>
           <h2 className="font-h2 text-h2 text-on-surface">Pick your stack</h2>
           <p className="mx-auto max-w-2xl text-body-base text-on-surface-variant">
-            Six launch stacks with certified rules and verified CVE linkage — browse posture and rules for each.
+            {stacks.length} launch stacks with certified rules and verified CVE linkage — browse posture and rules for each.
           </p>
         </div>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {stacks.map((s) => {
             const grade = (s as { securityGrade?: string }).securityGrade ?? "B";
+            const isLlm = s.slug === "ai-llm";
             const gradeColor =
               grade === "A" ? "text-[#22c55e] border-[#22c55e]/30 bg-[#22c55e]/10"
               : grade === "B" ? "text-[#3b82f6] border-[#3b82f6]/30 bg-[#3b82f6]/10"
@@ -30,13 +32,25 @@ export function HomeLaunchStacks({ stacks }: { stacks: Stack[] }) {
               <li key={s.slug}>
                 <Link
                   href={`/stacks/${encodeURIComponent(s.slug)}`}
-                  className="group relative flex items-center gap-4 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest p-5 transition-all duration-200 hover:border-primary/50 hover:bg-surface-container-low hover:shadow-[0_2px_16px_rgba(31,16,142,0.08)]"
+                  className={`group relative flex items-center gap-4 overflow-hidden rounded-xl border p-5 transition-all duration-200 hover:shadow-[0_2px_16px_rgba(31,16,142,0.08)] ${
+                    isLlm
+                      ? "border-purple-400/40 bg-purple-500/5 hover:border-purple-400/70 hover:bg-purple-500/10"
+                      : "border-outline-variant bg-surface-container-lowest hover:border-primary/50 hover:bg-surface-container-low"
+                  }`}
                 >
                   {/* Hover accent */}
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px scale-x-0 bg-gradient-to-r from-transparent via-primary/60 to-transparent transition-transform duration-300 group-hover:scale-x-100" />
 
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container text-primary">
-                    <MaterialSymbol name="layers" className="!text-xl" />
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${
+                    isLlm
+                      ? "border-purple-400/40 bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                      : "border-outline-variant bg-surface-container text-primary"
+                  }`}>
+                    {isLlm ? (
+                      <BrainCircuit className="h-5 w-5" />
+                    ) : (
+                      <MaterialSymbol name="layers" className="!text-xl" />
+                    )}
                   </div>
 
                   <div className="min-w-0 flex-1 text-left">

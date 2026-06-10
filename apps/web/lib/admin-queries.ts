@@ -189,13 +189,14 @@ export async function getRuleById(id: string) {
   return { rule: rows[0], layers, stacks, suggestedLayers };
 }
 
-export async function listThreats(params: { page: number; perPage: number; search?: string; severity?: string }) {
-  const { page, perPage, search, severity } = params;
+export async function listThreats(params: { page: number; perPage: number; search?: string; severity?: string; family?: string }) {
+  const { page, perPage, search, severity, family } = params;
   const offset = (page - 1) * perPage;
 
   const conditions = [];
   if (search) conditions.push(ilike(threat.name, `%${search}%`));
   if (severity) conditions.push(eq(threat.severity, severity as "critical" | "high" | "medium" | "low" | "info"));
+  if (family) conditions.push(eq(threat.family, family as "owasp_web" | "owasp_llm" | "mitre_atlas" | "vibe_coding"));
 
   const [rows, [total]] = await Promise.all([
     db
@@ -211,6 +212,8 @@ export async function listThreats(params: { page: number; perPage: number; searc
         isAmplified: sql<boolean>`(${threat.aiAmplification} IS NOT NULL)`,
         layerCount: sql<number>`(SELECT count(*)::int FROM threat_layer tl WHERE tl.threat_id = "threat"."public_id")`,
         stackCount: sql<number>`(SELECT count(*)::int FROM threat_stack ts WHERE ts.threat_id = "threat"."public_id")`,
+        epssScore: sql<number | null>`NULL::double precision`,
+        epssPercentile: sql<number | null>`NULL::double precision`,
       })
       .from(threat)
       .where(conditions.length ? and(...conditions) : undefined)
